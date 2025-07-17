@@ -2,7 +2,7 @@ name: CI/CD
 
 on:
   push:
-    branches: [master, main, develop, ci-master]
+    branches: [master, main, develop, ci-main]
   pull_request:
     branches: [master, main, develop]
 
@@ -43,7 +43,7 @@ jobs:
     name: Release
     needs: test
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ci-master'
+    if: github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/ci-main'
 
     steps:
       - name: Checkout code
