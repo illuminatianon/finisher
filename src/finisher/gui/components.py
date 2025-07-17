@@ -150,10 +150,11 @@ class ImageDropArea:
                 self.drop_frame.dnd_bind('<<Drop>>', self._on_drop)
                 self.drop_frame.dnd_bind('<<DragEnter>>', self._on_drag_enter)
                 self.drop_frame.dnd_bind('<<DragLeave>>', self._on_drag_leave)
-                
+
                 logger.info("Drag and drop enabled")
             except Exception as e:
                 logger.warning(f"Failed to enable drag and drop: {e}")
+                # Don't re-raise the exception - just continue without drag and drop
         else:
             logger.warning("tkinterdnd2 not available, drag and drop disabled")
     

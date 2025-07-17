@@ -34,12 +34,12 @@ class ErrorCategory(Enum):
 
 class FinisherError(Exception):
     """Base exception for Finisher application."""
-    
+
     def __init__(self, message: str, category: ErrorCategory = ErrorCategory.SYSTEM,
-                 severity: ErrorSeverity = ErrorSeverity.ERROR, 
+                 severity: ErrorSeverity = ErrorSeverity.ERROR,
                  user_message: Optional[str] = None, details: Optional[Dict[str, Any]] = None):
         """Initialize error.
-        
+
         Args:
             message: Technical error message
             category: Error category
@@ -53,6 +53,30 @@ class FinisherError(Exception):
         self.user_message = user_message or self._generate_user_message(message, category)
         self.details = details or {}
         self.timestamp = datetime.now()
+
+    @staticmethod
+    def _generate_user_message(message: str, category: ErrorCategory) -> str:
+        """Generate user-friendly message based on technical message.
+
+        Args:
+            message: Technical message
+            category: Error category
+
+        Returns:
+            User-friendly message
+        """
+        category_messages = {
+            ErrorCategory.NETWORK: "Network connection error. Please check your internet connection.",
+            ErrorCategory.API: "Auto1111 server error. Please check if the server is running.",
+            ErrorCategory.IMAGE: "Image processing error. Please check the image file.",
+            ErrorCategory.FILE: "File error. Please check file permissions and path.",
+            ErrorCategory.PROCESSING: "Processing error. The operation could not be completed.",
+            ErrorCategory.CONFIGURATION: "Configuration error. Please check your settings.",
+            ErrorCategory.UI: "Interface error. Please try again.",
+            ErrorCategory.SYSTEM: "System error. Please restart the application if the problem persists."
+        }
+
+        return category_messages.get(category, "An error occurred. Please try again.")
 
 
 class NetworkError(FinisherError):
@@ -321,29 +345,7 @@ class ErrorHandler:
             details={'exception_type': type(exc).__name__}
         )
     
-    def _generate_user_message(self, message: str, category: ErrorCategory) -> str:
-        """Generate user-friendly message based on technical message.
-        
-        Args:
-            message: Technical message
-            category: Error category
-            
-        Returns:
-            User-friendly message
-        """
-        category_messages = {
-            ErrorCategory.NETWORK: "Network connection error. Please check your internet connection.",
-            ErrorCategory.API: "Auto1111 server error. Please check if the server is running.",
-            ErrorCategory.IMAGE: "Image processing error. Please check the image file.",
-            ErrorCategory.FILE: "File error. Please check file permissions and path.",
-            ErrorCategory.PROCESSING: "Processing error. The operation could not be completed.",
-            ErrorCategory.CONFIGURATION: "Configuration error. Please check your settings.",
-            ErrorCategory.UI: "Interface error. Please try again.",
-            ErrorCategory.SYSTEM: "System error. Please restart the application if the problem persists."
-        }
-        
-        return category_messages.get(category, "An error occurred. Please try again.")
-    
+
     def _log_error(self, error: FinisherError, context: str) -> None:
         """Log error with appropriate level.
         

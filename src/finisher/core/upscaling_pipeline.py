@@ -192,10 +192,10 @@ class UpscalingPipeline:
         finally:
             self._cleanup_processing()
     
-    def _execute_pipeline(self, base64_image: str, prompt: str, 
+    def _execute_pipeline(self, base64_image: str, prompt: str,
                          negative_prompt: str, config: ProcessingConfig) -> None:
         """Execute the two-pass upscaling pipeline.
-        
+
         Args:
             base64_image: Base64 encoded input image
             prompt: Generation prompt
@@ -205,17 +205,17 @@ class UpscalingPipeline:
         # Register job with status monitor
         job_timestamp = self._generate_job_id()
         self.status_monitor.register_our_job(job_timestamp)
-        
+
         try:
             # First pass: img2img with SD upscale
             self._notify_progress("Starting first pass (img2img)...", 0.1)
-            
+
             first_pass_payload = config.to_img2img_payload(
                 init_images=[base64_image],
                 prompt=prompt,
                 negative_prompt=negative_prompt
             )
-            
+
             logger.info("Executing first pass (img2img)")
             first_pass_result = self.client.img2img(first_pass_payload)
             
@@ -232,7 +232,7 @@ class UpscalingPipeline:
             # Second pass: extra-single-image for final enhancement
             second_pass_payload = config.to_extra_single_image_payload(
                 image=first_pass_image,
-                upscaling_resize=1.5  # Additional scaling for second pass
+                upscaling_resize=1  # Additional scaling for second pass
             )
             
             logger.info("Executing second pass (extra-single-image)")

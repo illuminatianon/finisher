@@ -115,19 +115,33 @@ class Auto1111Client:
     
     def img2img(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Perform img2img processing with Auto1111.
-        
+
         Args:
             payload: img2img request payload
-            
+
         Returns:
             Processing result dictionary
-            
+
         Raises:
             requests.RequestException: If API call fails
         """
+        # Log the request payload for debugging
+        logger.info("Making img2img request to Auto1111")
+        logger.debug(f"img2img payload: {payload}")
+
+        # Log script_args specifically since that's likely where the issue is
+        if 'script_args' in payload:
+            logger.info(f"script_args: {payload['script_args']} (types: {[type(arg).__name__ for arg in payload['script_args']]})")
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+
         response = self.session.post(
             f"{self.base_url}/sdapi/v1/img2img",
             json=payload,
+            headers=headers,
             timeout=self.timeout
         )
         response.raise_for_status()
@@ -135,19 +149,29 @@ class Auto1111Client:
     
     def extra_single_image(self, payload: Dict[str, Any]) -> Dict[str, Any]:
         """Perform extra single image processing with Auto1111.
-        
+
         Args:
             payload: extra-single-image request payload
-            
+
         Returns:
             Processing result dictionary
-            
+
         Raises:
             requests.RequestException: If API call fails
         """
+        # Log the request payload for debugging
+        logger.info("Making extra-single-image request to Auto1111")
+        logger.debug(f"extra-single-image payload: {payload}")
+
+        headers = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+        }
+
         response = self.session.post(
             f"{self.base_url}/sdapi/v1/extra-single-image",
             json=payload,
+            headers=headers,
             timeout=self.timeout
         )
         response.raise_for_status()

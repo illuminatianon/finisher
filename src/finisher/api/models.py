@@ -79,32 +79,47 @@ class ProcessingConfig:
     cfg_scale: int = 10
     scheduler: str = "Automatic"
     
-    def to_img2img_payload(self, init_images: List[str], prompt: str = "", 
+    def to_img2img_payload(self, init_images: List[str], prompt: str = "",
                           negative_prompt: str = "") -> Dict[str, Any]:
         """Convert to img2img API payload.
-        
+
         Args:
             init_images: List of base64 encoded images
             prompt: Generation prompt
             negative_prompt: Negative prompt
-            
+
         Returns:
             img2img API payload dictionary
         """
+        import logging
+        logger = logging.getLogger(__name__)
+
+        # Log the configuration values being used
+        logger.info(f"Creating img2img payload with config: upscaler={self.upscaler}, "
+                   f"scale_factor={self.scale_factor} ({type(self.scale_factor).__name__}), "
+                   f"denoising_strength={self.denoising_strength} ({type(self.denoising_strength).__name__}), "
+                   f"tile_overlap={self.tile_overlap} ({type(self.tile_overlap).__name__}), "
+                   f"steps={self.steps} ({type(self.steps).__name__}), "
+                   f"cfg_scale={self.cfg_scale} ({type(self.cfg_scale).__name__})")
+
+        script_args = [
+            float(self.scale_factor),
+            int(self.tile_overlap),
+            self.upscaler,
+        ]
+
+        logger.info(f"script_args after conversion: {script_args} (types: {[type(arg).__name__ for arg in script_args]})")
+
         return {
             "init_images": init_images,
             "prompt": prompt,
             "negative_prompt": negative_prompt,
             "script_name": "SD upscale",
-            "script_args": [
-                self.upscaler,
-                self.scale_factor,
-                self.denoising_strength,
-                self.tile_overlap
-            ],
-            "steps": self.steps,
+            "script_args": script_args,
+            "denoising_strength": float(self.denoising_strength),
+            "steps": int(self.steps),
             "sampler_name": self.sampler_name,
-            "cfg_scale": self.cfg_scale,
+            "cfg_scale": float(self.cfg_scale),
             "batch_size": 1,
             "save_images": False,
             "scheduler": self.scheduler

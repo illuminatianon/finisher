@@ -314,17 +314,17 @@ class DragDropHandler:
         try:
             # Try to import tkinterdnd2
             from tkinterdnd2 import DND_FILES, TkinterDnD
-            
+
             # Enable drag and drop
             self.widget.drop_target_register(DND_FILES)
             self.widget.dnd_bind('<<Drop>>', self._on_drop)
             self.widget.dnd_bind('<<DragEnter>>', self._on_drag_enter)
             self.widget.dnd_bind('<<DragLeave>>', self._on_drag_leave)
-            
+
             logger.info("Enhanced drag and drop enabled")
-            
-        except ImportError:
-            logger.warning("tkinterdnd2 not available, using basic drag and drop")
+
+        except (ImportError, Exception) as e:
+            logger.warning(f"Enhanced drag and drop not available ({e}), using basic drag and drop")
             self._setup_basic_drag_drop()
     
     def _setup_basic_drag_drop(self) -> None:

@@ -363,14 +363,14 @@ class ApplicationController:
         merged_config = base_config.copy()
         merged_config.update(gui_config)
         
-        # Create ProcessingConfig object
+        # Create ProcessingConfig object with proper type conversion
         return ProcessingConfig(
             upscaler=merged_config.get('upscaler', 'Lanczos'),
-            scale_factor=merged_config.get('scale_factor', 2.5),
-            denoising_strength=merged_config.get('denoising_strength', 0.15),
-            tile_overlap=merged_config.get('tile_overlap', 64),
-            steps=merged_config.get('steps', 25),
+            scale_factor=float(merged_config.get('scale_factor', 2.5)),
+            denoising_strength=float(merged_config.get('denoising_strength', 0.15)),
+            tile_overlap=int(merged_config.get('tile_overlap', 64)),
+            steps=int(merged_config.get('steps', 25)),
             sampler_name=merged_config.get('sampler_name', 'Euler a'),
-            cfg_scale=merged_config.get('cfg_scale', 10),
+            cfg_scale=int(merged_config.get('cfg_scale', 10)),
             scheduler=merged_config.get('scheduler', 'Automatic')
         )
