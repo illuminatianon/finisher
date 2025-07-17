@@ -2,7 +2,7 @@
   "branches": [
     "master",
     "main",
-    "ci-master"
+    "ci-main"
   ],
   "plugins": [
     [
