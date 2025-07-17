@@ -1,6 +1,6 @@
 {
   "name": "finisher",
-  "version": "0.0.0-development",
+  "version": "0.0.0",
   "description": "Auto1111 based Image Upscaler",
   "private": true,
   "repository": {
@@ -18,8 +18,9 @@
   },
   "devDependencies": {
     "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
-    "semantic-release": "^22.0.0"
+    "semantic-release": "^24.2.7"
   },
   "release": {
     "branches": [
@@ -30,13 +31,20 @@
       "@semantic-release/commit-analyzer",
       "@semantic-release/release-notes-generator",
       "@semantic-release/changelog",
+      [
+        "@semantic-release/exec",
+        {
+          "verifyConditionsCmd": "which git && git --version"
+        }
+      ],
       "@semantic-release/github",
       [
         "@semantic-release/git",
         {
           "assets": [
             "CHANGELOG.md",
-            "src/finisher/__init__.py"
+            "src/finisher/__init__.py",
+            "package.json"
           ],
           "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
         }
