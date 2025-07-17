@@ -5,7 +5,7 @@
   "private": true,
   "repository": {
     "type": "git",
-    "url": "git@github-anonymous:illuminatianon/finisher.git"
+    "url": "git@github.com:illuminatianon/finisher.git"
   },
   "license": "MIT",
   "author": "illuminatianon <me@illuminati.com>",
@@ -21,34 +21,5 @@
     "@semantic-release/exec": "^7.1.0",
     "@semantic-release/git": "^10.0.1",
     "semantic-release": "^24.2.7"
-  },
-  "release": {
-    "branches": [
-      "master",
-      "main"
-    ],
-    "plugins": [
-      "@semantic-release/commit-analyzer",
-      "@semantic-release/release-notes-generator",
-      "@semantic-release/changelog",
-      [
-        "@semantic-release/exec",
-        {
-          "verifyConditionsCmd": "which git && git --version"
-        }
-      ],
-      "@semantic-release/github",
-      [
-        "@semantic-release/git",
-        {
-          "assets": [
-            "CHANGELOG.md",
-            "src/finisher/__init__.py",
-            "package.json"
-          ],
-          "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
-        }
-      ]
-    ]
   }
 }
