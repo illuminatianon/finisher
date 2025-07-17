@@ -8,7 +8,7 @@ dynamic = ["version"]
 description = "AI Image Upscaling Tool using Automatic1111 API"
 readme = "README.md"
 license = {text = "MIT"}
-requires-python = ">=3.8"
+requires-python = ">=3.9"
 authors = [
     {name = "illuminatianon", email = "me@illuminati.com"}
 ]
@@ -35,6 +35,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     "pytest>=7.0.0",
+    "pytest-cov>=4.1.0",
     "pytest-asyncio>=0.21.0",
     "black>=23.0.0",
     "flake8>=6.0.0",
@@ -47,9 +48,9 @@ dev = [
 finisher = "finisher.main:main"
 
 [project.urls]
-Homepage = "https://github.com/username/finisher"
-Repository = "https://github.com/username/finisher"
-Issues = "https://github.com/username/finisher/issues"
+Homepage = "https://github.com/illuminatianon/finisher"
+Repository = "https://github.com/illuminatianon/finisher"
+Issues = "https://github.com/illuminatianon/finisher/issues"
 
 [tool.hatch.version]
 path = "src/finisher/__init__.py"
@@ -59,7 +60,7 @@ packages = ["src/finisher"]
 
 [tool.black]
 line-length = 88
-target-version = ['py38']
+target-version = ['py39']
 include = '\.pyi?$'
 extend-exclude = '''
 /(
@@ -70,8 +71,16 @@ extend-exclude = '''
   | \.mypy_cache
   | \.tox
   | \.venv
+  | venv
+  | env
+  | ENV
+  | \.env
+  | site-packages
+  | node_modules
   | build
   | dist
+  | \.pytest_cache
+  | htmlcov
 )/
 '''
 
@@ -82,13 +91,22 @@ exclude = [
     ".git",
     "__pycache__",
     ".venv",
+    "venv",
+    "env",
+    "ENV",
+    ".env",
+    "site-packages",
+    "node_modules",
     "build",
     "dist",
     "*.egg-info",
+    ".pytest_cache",
+    "htmlcov",
+    ".mypy_cache",
 ]
 
 [tool.mypy]
-python_version = "3.8"
+python_version = "3.9"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
@@ -101,6 +119,17 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+exclude = [
+    "venv/",
+    ".venv/",
+    "env/",
+    "ENV/",
+    ".env/",
+    "site-packages/",
+    "node_modules/",
+    "build/",
+    "dist/",
+]
 
 [[tool.mypy.overrides]]
 module = "tkinterdnd2.*"
