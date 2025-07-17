@@ -1,0 +1,46 @@
+{
+  "name": "finisher",
+  "version": "0.0.0-development",
+  "description": "Auto1111 based Image Upscaler",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git@github-anonymous:illuminatianon/finisher.git"
+  },
+  "license": "MIT",
+  "author": "illuminatianon <me@illuminati.com>",
+  "type": "commonjs",
+  "directories": {
+    "doc": "docs"
+  },
+  "scripts": {
+    "semantic-release": "semantic-release"
+  },
+  "devDependencies": {
+    "@semantic-release/changelog": "^6.0.3",
+    "@semantic-release/git": "^10.0.1",
+    "semantic-release": "^22.0.0"
+  },
+  "release": {
+    "branches": [
+      "master",
+      "main"
+    ],
+    "plugins": [
+      "@semantic-release/commit-analyzer",
+      "@semantic-release/release-notes-generator",
+      "@semantic-release/changelog",
+      "@semantic-release/github",
+      [
+        "@semantic-release/git",
+        {
+          "assets": [
+            "CHANGELOG.md",
+            "src/finisher/__init__.py"
+          ],
+          "message": "chore(release): ${nextRelease.version} [skip ci]\n\n${nextRelease.notes}"
+        }
+      ]
+    ]
+  }
+}
