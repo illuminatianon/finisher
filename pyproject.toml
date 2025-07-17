@@ -71,8 +71,16 @@ extend-exclude = '''
   | \.mypy_cache
   | \.tox
   | \.venv
+  | venv
+  | env
+  | ENV
+  | \.env
+  | site-packages
+  | node_modules
   | build
   | dist
+  | \.pytest_cache
+  | htmlcov
 )/
 '''
 
@@ -83,9 +91,18 @@ exclude = [
     ".git",
     "__pycache__",
     ".venv",
+    "venv",
+    "env",
+    "ENV",
+    ".env",
+    "site-packages",
+    "node_modules",
     "build",
     "dist",
     "*.egg-info",
+    ".pytest_cache",
+    "htmlcov",
+    ".mypy_cache",
 ]
 
 [tool.mypy]
@@ -102,6 +119,17 @@ warn_unused_ignores = true
 warn_no_return = true
 warn_unreachable = true
 strict_equality = true
+exclude = [
+    "venv/",
+    ".venv/",
+    "env/",
+    "ENV/",
+    ".env/",
+    "site-packages/",
+    "node_modules/",
+    "build/",
+    "dist/",
+]
 
 [[tool.mypy.overrides]]
 module = "tkinterdnd2.*"
