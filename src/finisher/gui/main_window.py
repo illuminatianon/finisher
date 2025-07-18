@@ -5,6 +5,7 @@ from tkinter import ttk, filedialog, messagebox
 import logging
 from typing import Optional, Callable
 from .components import StatusBar, ImageDropArea, ConfigurationPanel
+from tkinterdnd2 import DND_FILES, TkinterDnD
 
 logger = logging.getLogger(__name__)
 
@@ -18,7 +19,7 @@ class MainWindow:
         Args:
             title: Window title
         """
-        self.root = tk.Tk()
+        self.root = TkinterDnD.Tk()
         self.root.title(title)
         self.root.geometry("800x600")
         self.root.minsize(600, 400)
