@@ -4,9 +4,9 @@
 ### Core Technology Stack
 
 #### Frontend/GUI
-- **Framework**: Python tkinter (native desktop GUI)
-- **Version**: Python 3.8+ (tkinter included in standard library)
-- **Rationale**: Native desktop application, no web dependencies, cross-platform
+- **Framework**: PySide6 (Qt6-based desktop GUI)
+- **Version**: PySide6 6.5.0+ with Python 3.8+
+- **Rationale**: Modern, professional GUI with native drag-and-drop, superior cross-platform support, and better styling capabilities
 
 #### Backend/API Integration
 - **HTTP Client**: Python `requests` library
@@ -16,7 +16,7 @@
 
 #### Development Environment
 - **Package Manager**: `uv` for virtual environment and dependency management
-- **Python Version**: 3.8+ (for tkinter compatibility and modern features)
+- **Python Version**: 3.8+ (for PySide6 compatibility and modern features)
 - **Virtual Environment**: Managed by `uv`
 
 ### Dependencies
@@ -28,7 +28,7 @@
 dependencies = [
     "requests>=2.31.0",           # HTTP client for Auto1111 API
     "Pillow>=10.0.0",            # Image processing and metadata extraction
-    "tkinterdnd2>=0.3.0",        # Enhanced drag-and-drop support for tkinter
+    "pyside6>=6.5.0",            # Modern GUI framework with native drag-and-drop
 ]
 ```
 
@@ -60,13 +60,15 @@ dev = [
   - Convert between image formats
   - Base64 encoding/decoding for API communication
 
-#### `tkinterdnd2`
-- **Purpose**: Enhanced drag-and-drop functionality
+#### `PySide6`
+- **Purpose**: Modern GUI framework with comprehensive widget set
 - **Usage**:
-  - File drag-and-drop from file explorer
-  - Direct image data drag from web browsers
-  - Clipboard paste support
-- **Rationale**: Standard tkinter drag-and-drop is limited
+  - Main application window and all UI components
+  - Native drag-and-drop functionality for files
+  - Professional styling and theming
+  - Cross-platform native look and feel
+  - Built-in clipboard integration
+- **Rationale**: Provides superior GUI capabilities with native drag-and-drop, better performance, and professional appearance
 
 ### Architecture Patterns
 
@@ -97,7 +99,7 @@ finisher/
 │   │   ├── main.py              # Application entry point
 │   │   ├── gui/
 │   │   │   ├── __init__.py
-│   │   │   ├── main_window.py   # Main tkinter window
+│   │   │   ├── main_window.py   # Main PySide6 window
 │   │   │   ├── components/      # UI components
 │   │   │   └── utils.py         # GUI utilities
 │   │   ├── api/
@@ -144,9 +146,9 @@ finisher/
 - Efficient polling strategies based on application state
 
 ### Cross-Platform Compatibility
-- **Windows**: Primary development target
-- **macOS**: tkinter native support
-- **Linux**: tkinter available in most distributions
+- **Windows**: Primary development target with native Qt support
+- **macOS**: PySide6 provides native macOS look and feel
+- **Linux**: PySide6 integrates well with all major desktop environments
 - **Dependencies**: All dependencies are cross-platform compatible
 
 ### Security Considerations

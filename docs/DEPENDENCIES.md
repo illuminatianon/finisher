@@ -25,16 +25,17 @@
 - **Features**: Comprehensive image format support, metadata handling, efficient processing
 - **License**: PIL Software License (PIL License)
 
-#### Enhanced GUI Functionality
-**`tkinterdnd2>=0.3.0`**
-- **Purpose**: Enhanced drag-and-drop support for tkinter applications
+#### Modern GUI Framework
+**`PySide6>=6.5.0`**
+- **Purpose**: Modern, cross-platform GUI framework based on Qt6
 - **Usage**:
-  - File drag-and-drop from file explorer
-  - Direct image data drag from web browsers
-  - Improved clipboard integration
-  - Cross-platform drag-and-drop consistency
-- **Rationale**: Standard tkinter drag-and-drop is limited and inconsistent across platforms
-- **License**: MIT
+  - Main application window and UI components
+  - Native drag-and-drop support for file operations
+  - Professional-looking widgets and layouts
+  - Built-in clipboard integration
+  - Cross-platform consistency and native look-and-feel
+- **Rationale**: Provides superior GUI capabilities compared to tkinter, with native drag-and-drop, better styling, and more robust cross-platform support
+- **License**: LGPL/Commercial
 
 ### Development Dependencies
 
@@ -99,10 +100,6 @@
 ### Standard Library Dependencies (No Installation Required)
 
 #### Built-in Python Modules
-**`tkinter`**
-- **Purpose**: GUI framework (included with Python)
-- **Usage**: Main application window, UI components, event handling
-- **Version**: Included with Python 3.8+
 
 **`json`**
 - **Purpose**: JSON parsing and serialization
@@ -143,10 +140,10 @@
 - **Consideration**: Useful for larger applications with complex configuration
 
 #### GUI Enhancements
-**`customtkinter`** (Future)
-- **Purpose**: Modern-looking tkinter widgets
-- **Usage**: Enhanced UI appearance and components
-- **Consideration**: May improve user experience but adds complexity
+**`qtawesome`** (Future)
+- **Purpose**: Icon fonts for PySide6/PyQt applications
+- **Usage**: Professional icons and symbols in the UI
+- **Consideration**: Would enhance visual appeal but adds dependency
 
 ### Dependency Management Strategy
 
@@ -194,7 +191,7 @@ pip install finisher
 #### Why These Specific Dependencies?
 1. **requests**: Industry standard for HTTP clients, excellent Auto1111 API support
 2. **Pillow**: Most comprehensive Python image library, excellent metadata support
-3. **tkinterdnd2**: Solves tkinter's drag-and-drop limitations effectively
+3. **PySide6**: Modern GUI framework with native drag-and-drop, superior to tkinter
 4. **pytest**: Most popular Python testing framework with excellent ecosystem
 5. **black**: Opinionated formatter that eliminates style debates
 6. **semantic-release**: Mature automation tool for version management
@@ -202,5 +199,6 @@ pip install finisher
 #### Alternatives Considered
 - **httpx** vs **requests**: requests chosen for stability and widespread adoption
 - **opencv-python** vs **Pillow**: Pillow sufficient for current needs, opencv too heavy
-- **PyQt/PySide** vs **tkinter**: tkinter chosen for simplicity and no licensing concerns
+- **PyQt6** vs **PySide6**: PySide6 chosen for LGPL licensing and official Qt support
+- **tkinter** vs **PySide6**: PySide6 chosen for superior GUI capabilities and native drag-and-drop
 - **unittest** vs **pytest**: pytest chosen for better fixtures and ecosystem

@@ -1,201 +1,232 @@
 """GUI components for the main window."""
 
-import tkinter as tk
-from tkinter import ttk
 import logging
 from typing import Optional, Callable, List
-try:
-    from tkinterdnd2 import DND_FILES, TkinterDnD
-except ImportError:
-    # Fallback if tkinterdnd2 is not available
-    DND_FILES = None
-    TkinterDnD = None
+from PySide6.QtWidgets import (
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,
+    QComboBox, QSpinBox, QDoubleSpinBox, QGridLayout,
+    QGroupBox
+)
+from PySide6.QtCore import Qt, Signal
+from PySide6.QtGui import QDragEnterEvent, QDropEvent
 
 logger = logging.getLogger(__name__)
 
 
-class StatusBar:
+class StatusBar(QWidget):
     """Status bar component for showing progress and status."""
-    
-    def __init__(self, parent: tk.Widget):
+
+    def __init__(self, parent: QWidget):
         """Initialize status bar.
-        
+
         Args:
             parent: Parent widget
         """
-        self.frame = ttk.Frame(parent)
-        self.frame.pack(side=tk.BOTTOM, fill=tk.X, padx=5, pady=5)
-        
+        super().__init__(parent)
+
+        # Create layout
+        layout = QHBoxLayout(self)
+        layout.setContentsMargins(5, 5, 5, 5)
+
         # Status label
-        self.status_label = ttk.Label(self.frame, text="Ready")
-        self.status_label.pack(side=tk.LEFT)
-        
+        self.status_label = QLabel("Ready")
+        layout.addWidget(self.status_label)
+
+        # Add stretch to push progress bar to the right
+        layout.addStretch()
+
         # Progress bar
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(
-            self.frame,
-            variable=self.progress_var,
-            maximum=100,
-            length=200
-        )
-        self.progress_bar.pack(side=tk.RIGHT, padx=(10, 0))
-        
-        # Initially hide progress bar
-        self.progress_bar.pack_forget()
-    
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.setFixedWidth(200)
+        self.progress_bar.setVisible(False)  # Initially hidden
+        layout.addWidget(self.progress_bar)
+
+        # Add to parent's status bar if it's a QMainWindow
+        if hasattr(parent, 'statusBar') and callable(getattr(parent, 'statusBar')):
+            parent.statusBar().addPermanentWidget(self)
+        else:
+            # If not a QMainWindow, add ourselves to the parent's layout
+            if hasattr(parent, 'layout') and parent.layout():
+                parent.layout().addWidget(self)
+
     def update_status(self, status: str, progress: Optional[float] = None) -> None:
         """Update status and progress.
-        
+
         Args:
             status: Status text
             progress: Progress value (0.0 to 1.0) or None to hide
         """
-        self.status_label.config(text=status)
-        
+        self.status_label.setText(status)
+
         if progress is not None:
-            self.progress_var.set(progress * 100)
-            self.progress_bar.pack(side=tk.RIGHT, padx=(10, 0))
+            self.progress_bar.setValue(int(progress * 100))
+            self.progress_bar.setVisible(True)
         else:
-            self.progress_bar.pack_forget()
+            self.progress_bar.setVisible(False)
 
 
-class ProgressIndicator:
+class ProgressIndicator(QWidget):
     """Standalone progress indicator component."""
-    
-    def __init__(self, parent: tk.Widget):
+
+    def __init__(self, parent: QWidget):
         """Initialize progress indicator.
-        
+
         Args:
             parent: Parent widget
         """
-        self.frame = ttk.Frame(parent)
-        
-        self.progress_var = tk.DoubleVar()
-        self.progress_bar = ttk.Progressbar(
-            self.frame,
-            variable=self.progress_var,
-            maximum=100
-        )
-        self.progress_bar.pack(fill=tk.X, padx=5, pady=5)
-        
-        self.label = ttk.Label(self.frame, text="")
-        self.label.pack()
-    
-    def update(self, progress: float, text: str = "") -> None:
+        super().__init__(parent)
+
+        # Create layout
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(5, 5, 5, 5)
+
+        # Progress bar
+        self.progress_bar = QProgressBar()
+        self.progress_bar.setMaximum(100)
+        self.progress_bar.setValue(0)  # Set initial value to 0
+        layout.addWidget(self.progress_bar)
+
+        # Label
+        self.label = QLabel("")
+        layout.addWidget(self.label)
+
+    def update_progress(self, progress: float, text: str = "") -> None:
         """Update progress indicator.
-        
+
         Args:
             progress: Progress value (0.0 to 1.0)
             text: Optional text to display
         """
-        self.progress_var.set(progress * 100)
-        self.label.config(text=text)
-    
+        self.progress_bar.setValue(int(progress * 100))
+        self.label.setText(text)
+
     def show(self) -> None:
         """Show the progress indicator."""
-        self.frame.pack(fill=tk.X, padx=5, pady=5)
-    
+        super().show()
+
     def hide(self) -> None:
         """Hide the progress indicator."""
-        self.frame.pack_forget()
+        super().hide()
 
 
-class ImageDropArea:
+class ImageDropArea(QWidget):
     """Drag and drop area for images."""
-    
-    def __init__(self, parent: tk.Widget):
+
+    # Define signals for callbacks
+    image_dropped = Signal(str)
+    file_selected = Signal()
+
+    def __init__(self, parent: QWidget):
         """Initialize image drop area.
-        
+
         Args:
             parent: Parent widget
         """
-        self.parent = parent
+        super().__init__(parent)
         self.on_image_dropped: Optional[Callable[[str], None]] = None
         self.on_file_selected: Optional[Callable[[str], None]] = None
-        
+
         self._setup_ui()
         self._setup_drag_drop()
-    
+
     def _setup_ui(self) -> None:
         """Set up the UI components."""
-        # Main drop area
-        self.drop_frame = tk.Frame(
-            self.parent,
-            bg="lightgray",
-            relief=tk.SUNKEN,
-            bd=2
-        )
-        self.drop_frame.pack(fill=tk.BOTH, expand=True)
-        
+        # Create layout for the parent group box
+        parent_widget = self.parent()
+        if isinstance(parent_widget, QGroupBox):
+            parent_layout = QVBoxLayout(parent_widget)
+            parent_layout.addWidget(self)
+
+        # Main layout
+        layout = QVBoxLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+
         # Instructions label
-        self.instructions = tk.Label(
-            self.drop_frame,
-            text="Drop image files here\nor click to browse",
-            bg="lightgray",
-            fg="darkgray",
-            font=("Arial", 12)
-        )
-        self.instructions.pack(expand=True)
-        
-        # Bind click event
-        self.drop_frame.bind("<Button-1>", self._on_click)
-        self.instructions.bind("<Button-1>", self._on_click)
+        self.instructions = QLabel("Drop image files here\nor click to browse")
+        self.instructions.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.instructions.setStyleSheet("""
+            QLabel {
+                background-color: lightgray;
+                color: darkgray;
+                font-size: 12pt;
+                border: 2px solid gray;
+                border-style: inset;
+                padding: 20px;
+            }
+        """)
+        self.instructions.setMinimumHeight(150)
+        layout.addWidget(self.instructions)
+
+        # Make the widget clickable
+        self.instructions.mousePressEvent = self._on_click
     
     def _setup_drag_drop(self) -> None:
         """Set up drag and drop functionality."""
-        if TkinterDnD and DND_FILES:
-            try:
-                # Enable drag and drop
-                self.drop_frame.drop_target_register(DND_FILES)
-                self.drop_frame.dnd_bind('<<Drop>>', self._on_drop)
-                self.drop_frame.dnd_bind('<<DragEnter>>', self._on_drag_enter)
-                self.drop_frame.dnd_bind('<<DragLeave>>', self._on_drag_leave)
+        # Enable drag and drop
+        self.setAcceptDrops(True)
+        logger.info("Drag and drop enabled")
 
-                logger.info("Drag and drop enabled")
-            except Exception as e:
-                logger.warning(f"Failed to enable drag and drop: {e}")
-                # Don't re-raise the exception - just continue without drag and drop
-        else:
-            logger.warning("tkinterdnd2 not available, drag and drop disabled")
-    
     def _on_click(self, event) -> None:
         """Handle click event to browse files."""
         # Trigger file browser through callback
         if self.on_file_selected:
-            # Create a dummy event to trigger file browser
-            # This will be caught by the main window
-            self.parent.event_generate("<<BrowseFiles>>")
+            self.on_file_selected("")  # Empty string to trigger file browser
     
-    def _on_drop(self, event) -> None:
+    def dragEnterEvent(self, event: QDragEnterEvent) -> None:
+        """Handle drag enter event."""
+        if event.mimeData().hasUrls():
+            event.acceptProposedAction()
+            self.instructions.setStyleSheet("""
+                QLabel {
+                    background-color: lightblue;
+                    color: darkblue;
+                    font-size: 12pt;
+                    border: 2px solid blue;
+                    border-style: inset;
+                    padding: 20px;
+                }
+            """)
+            self.instructions.setText("Drop image here")
+
+    def dragLeaveEvent(self, event) -> None:
+        """Handle drag leave event."""
+        self.instructions.setStyleSheet("""
+            QLabel {
+                background-color: lightgray;
+                color: darkgray;
+                font-size: 12pt;
+                border: 2px solid gray;
+                border-style: inset;
+                padding: 20px;
+            }
+        """)
+        self.instructions.setText("Drop image files here\nor click to browse")
+
+    def dropEvent(self, event: QDropEvent) -> None:
         """Handle file drop event."""
         if not self.on_image_dropped:
             return
-        
+
         try:
             # Get dropped files
-            files = event.data.split()
-            
+            urls = event.mimeData().urls()
+
             # Process first valid image file
-            for file_path in files:
-                # Remove curly braces if present
-                file_path = file_path.strip('{}')
-                
+            for url in urls:
+                file_path = url.toLocalFile()
+
                 if self._is_image_file(file_path):
                     self.on_image_dropped(file_path)
                     break
-            
+
+            event.acceptProposedAction()
+
         except Exception as e:
             logger.error(f"Error handling drop event: {e}")
-    
-    def _on_drag_enter(self, event) -> None:
-        """Handle drag enter event."""
-        self.drop_frame.config(bg="lightblue")
-        self.instructions.config(bg="lightblue", text="Drop image here")
-    
-    def _on_drag_leave(self, event) -> None:
-        """Handle drag leave event."""
-        self.drop_frame.config(bg="lightgray")
-        self.instructions.config(bg="lightgray", text="Drop image files here\nor click to browse")
+
+        # Reset appearance
+        self.dragLeaveEvent(None)
     
     def _is_image_file(self, file_path: str) -> bool:
         """Check if file is an image.
@@ -211,104 +242,109 @@ class ImageDropArea:
     
     def set_status(self, text: str, color: str = "darkgray") -> None:
         """Set status text in the drop area.
-        
+
         Args:
             text: Status text
             color: Text color
         """
-        self.instructions.config(text=text, fg=color)
+        self.instructions.setText(text)
+        # Update stylesheet with new color
+        self.instructions.setStyleSheet(f"""
+            QLabel {{
+                background-color: lightgray;
+                color: {color};
+                font-size: 12pt;
+                border: 2px solid gray;
+                border-style: inset;
+                padding: 20px;
+            }}
+        """)
 
 
-class ConfigurationPanel:
+class ConfigurationPanel(QWidget):
     """Configuration panel for processing settings."""
-    
-    def __init__(self, parent: tk.Widget):
+
+    def __init__(self, parent: QWidget):
         """Initialize configuration panel.
-        
+
         Args:
             parent: Parent widget
         """
-        self.parent = parent
+        super().__init__(parent)
         self.on_config_changed: Optional[Callable[[dict], None]] = None
-        
-        # Configuration variables
-        self.upscaler_var = tk.StringVar()
-        self.scale_var = tk.DoubleVar(value=2.5)
-        self.denoising_var = tk.DoubleVar(value=0.15)
-        self.tile_overlap_var = tk.IntVar(value=64)
-        
+
         self._setup_ui()
         self._setup_bindings()
     
     def _setup_ui(self) -> None:
         """Set up the UI components."""
+        # Create layout for the parent group box
+        parent_widget = self.parent()
+        if isinstance(parent_widget, QGroupBox):
+            parent_layout = QVBoxLayout(parent_widget)
+            parent_layout.addWidget(self)
+
         # Create grid layout
+        layout = QGridLayout(self)
+        layout.setContentsMargins(10, 10, 10, 10)
+        layout.setSpacing(10)
+
         row = 0
-        
+
         # Upscaler selection
-        ttk.Label(self.parent, text="Upscaler:").grid(row=row, column=0, sticky=tk.W, padx=(0, 10))
-        self.upscaler_combo = ttk.Combobox(self.parent, textvariable=self.upscaler_var, state="readonly")
-        self.upscaler_combo.grid(row=row, column=1, sticky=tk.EW, padx=(0, 20))
-        
+        layout.addWidget(QLabel("Upscaler:"), row, 0)
+        self.upscaler_combo = QComboBox()
+        layout.addWidget(self.upscaler_combo, row, 1)
+
         # Scale factor
-        ttk.Label(self.parent, text="Scale Factor:").grid(row=row, column=2, sticky=tk.W, padx=(0, 10))
-        self.scale_spin = ttk.Spinbox(
-            self.parent,
-            from_=1.0,
-            to=4.0,
-            increment=0.1,
-            textvariable=self.scale_var,
-            width=10
-        )
-        self.scale_spin.grid(row=row, column=3, sticky=tk.W)
-        
+        layout.addWidget(QLabel("Scale Factor:"), row, 2)
+        self.scale_spin = QDoubleSpinBox()
+        self.scale_spin.setRange(1.0, 4.0)
+        self.scale_spin.setSingleStep(0.1)
+        self.scale_spin.setValue(2.5)
+        self.scale_spin.setDecimals(1)
+        layout.addWidget(self.scale_spin, row, 3)
+
         row += 1
-        
+
         # Denoising strength
-        ttk.Label(self.parent, text="Denoising:").grid(row=row, column=0, sticky=tk.W, padx=(0, 10))
-        self.denoising_spin = ttk.Spinbox(
-            self.parent,
-            from_=0.0,
-            to=1.0,
-            increment=0.05,
-            textvariable=self.denoising_var,
-            width=10
-        )
-        self.denoising_spin.grid(row=row, column=1, sticky=tk.W)
-        
+        layout.addWidget(QLabel("Denoising:"), row, 0)
+        self.denoising_spin = QDoubleSpinBox()
+        self.denoising_spin.setRange(0.0, 1.0)
+        self.denoising_spin.setSingleStep(0.05)
+        self.denoising_spin.setValue(0.15)
+        self.denoising_spin.setDecimals(2)
+        layout.addWidget(self.denoising_spin, row, 1)
+
         # Tile overlap
-        ttk.Label(self.parent, text="Tile Overlap:").grid(row=row, column=2, sticky=tk.W, padx=(0, 10))
-        self.tile_spin = ttk.Spinbox(
-            self.parent,
-            from_=0,
-            to=256,
-            increment=8,
-            textvariable=self.tile_overlap_var,
-            width=10
-        )
-        self.tile_spin.grid(row=row, column=3, sticky=tk.W)
-        
-        # Configure column weights
-        self.parent.columnconfigure(1, weight=1)
-        self.parent.columnconfigure(3, weight=1)
+        layout.addWidget(QLabel("Tile Overlap:"), row, 2)
+        self.tile_spin = QSpinBox()
+        self.tile_spin.setRange(0, 256)
+        self.tile_spin.setSingleStep(8)
+        self.tile_spin.setValue(64)
+        layout.addWidget(self.tile_spin, row, 3)
+
+        # Configure column stretch
+        layout.setColumnStretch(1, 1)
+        layout.setColumnStretch(3, 1)
     
     def _setup_bindings(self) -> None:
         """Set up variable change bindings."""
-        self.upscaler_var.trace('w', self._on_config_change)
-        self.scale_var.trace('w', self._on_config_change)
-        self.denoising_var.trace('w', self._on_config_change)
-        self.tile_overlap_var.trace('w', self._on_config_change)
-    
-    def _on_config_change(self, *args) -> None:
+        self.upscaler_combo.currentTextChanged.connect(self._on_config_change)
+        self.scale_spin.valueChanged.connect(self._on_config_change)
+        self.denoising_spin.valueChanged.connect(self._on_config_change)
+        self.tile_spin.valueChanged.connect(self._on_config_change)
+
+    def _on_config_change(self) -> None:
         """Handle configuration change."""
         if self.on_config_changed:
             config = self.get_configuration()
             self.on_config_changed(config)
-    
-    def update_options(self, upscalers: List[str], models: List[str], 
+
+    def update_options(self, upscalers: List[str], models: List[str],
                       samplers: List[str], schedulers: List[str]) -> None:
         """Update available options.
-        
+
         Args:
             upscalers: List of upscaler names
             models: List of model names
@@ -316,34 +352,35 @@ class ConfigurationPanel:
             schedulers: List of scheduler names
         """
         # Update upscaler options
-        self.upscaler_combo['values'] = upscalers
-        if upscalers and not self.upscaler_var.get():
-            self.upscaler_var.set(upscalers[0])
-    
+        self.upscaler_combo.clear()
+        self.upscaler_combo.addItems(upscalers)
+        if upscalers and self.upscaler_combo.currentText() == "":
+            self.upscaler_combo.setCurrentText(upscalers[0])
+
     def get_configuration(self) -> dict:
         """Get current configuration.
-        
+
         Returns:
             Configuration dictionary
         """
         return {
-            "upscaler": self.upscaler_var.get(),
-            "scale_factor": self.scale_var.get(),
-            "denoising_strength": self.denoising_var.get(),
-            "tile_overlap": self.tile_overlap_var.get()
+            "upscaler": self.upscaler_combo.currentText(),
+            "scale_factor": self.scale_spin.value(),
+            "denoising_strength": self.denoising_spin.value(),
+            "tile_overlap": self.tile_spin.value()
         }
-    
+
     def set_configuration(self, config: dict) -> None:
         """Set configuration values.
-        
+
         Args:
             config: Configuration dictionary
         """
         if "upscaler" in config:
-            self.upscaler_var.set(config["upscaler"])
+            self.upscaler_combo.setCurrentText(config["upscaler"])
         if "scale_factor" in config:
-            self.scale_var.set(config["scale_factor"])
+            self.scale_spin.setValue(config["scale_factor"])
         if "denoising_strength" in config:
-            self.denoising_var.set(config["denoising_strength"])
+            self.denoising_spin.setValue(config["denoising_strength"])
         if "tile_overlap" in config:
-            self.tile_overlap_var.set(config["tile_overlap"])
+            self.tile_spin.setValue(config["tile_overlap"])

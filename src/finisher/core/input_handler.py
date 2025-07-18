@@ -2,7 +2,6 @@
 
 import logging
 import io
-import tkinter as tk
 from typing import Optional, Callable, Union, Tuple
 from PIL import Image, ImageGrab
 import base64
@@ -233,145 +232,117 @@ class InputHandler:
 
 
 class ClipboardMonitor:
-    """Monitors clipboard for image changes."""
-    
-    def __init__(self, root: tk.Tk, input_handler: InputHandler):
+    """Monitors clipboard for image changes using PySide6."""
+
+    def __init__(self, input_handler: InputHandler):
         """Initialize clipboard monitor.
-        
+
         Args:
-            root: Tkinter root window
             input_handler: Input handler instance
         """
-        self.root = root
         self.input_handler = input_handler
         self.monitoring = False
         self.last_clipboard_content = None
-        
+        self.timer = None
+
+        # Import PySide6 components
+        try:
+            from PySide6.QtCore import QTimer
+            from PySide6.QtWidgets import QApplication
+            self.QTimer = QTimer
+            self.QApplication = QApplication
+        except ImportError:
+            logger.warning("PySide6 not available for clipboard monitoring")
+            self.QTimer = None
+            self.QApplication = None
+
     def start_monitoring(self, interval: int = 1000) -> None:
         """Start monitoring clipboard.
-        
+
         Args:
             interval: Check interval in milliseconds
         """
-        if self.monitoring:
+        if self.monitoring or not self.QTimer:
             return
-        
+
         self.monitoring = True
-        self._check_clipboard()
-        
-        # Schedule next check
-        self.root.after(interval, lambda: self._schedule_check(interval))
-        
+
+        # Create timer for periodic checks
+        self.timer = self.QTimer()
+        self.timer.timeout.connect(self._check_clipboard)
+        self.timer.start(interval)
+
         logger.info("Clipboard monitoring started")
-    
+
     def stop_monitoring(self) -> None:
         """Stop monitoring clipboard."""
         self.monitoring = False
+        if self.timer:
+            self.timer.stop()
+            self.timer = None
         logger.info("Clipboard monitoring stopped")
-    
-    def _schedule_check(self, interval: int) -> None:
-        """Schedule next clipboard check.
-        
-        Args:
-            interval: Check interval in milliseconds
-        """
-        if self.monitoring:
-            self._check_clipboard()
-            self.root.after(interval, lambda: self._schedule_check(interval))
-    
+
     def _check_clipboard(self) -> None:
         """Check clipboard for changes."""
         try:
             # Get current clipboard content
             current_content = ImageGrab.grabclipboard()
-            
+
             # Check if content changed and is an image
-            if (current_content is not None and 
+            if (current_content is not None and
                 isinstance(current_content, Image.Image) and
                 current_content != self.last_clipboard_content):
-                
+
                 logger.debug("New image detected in clipboard")
                 self.last_clipboard_content = current_content
-                
+
                 # Handle the new image
                 self.input_handler.handle_clipboard_paste()
-                
+
         except Exception as e:
             logger.debug(f"Clipboard check error: {e}")
 
 
 class DragDropHandler:
-    """Enhanced drag and drop handler."""
-    
-    def __init__(self, widget: tk.Widget, input_handler: InputHandler):
+    """Deprecated: Drag and drop handler for tkinter (no longer used with PySide6)."""
+
+    def __init__(self, widget, input_handler: InputHandler):
         """Initialize drag drop handler.
-        
+
         Args:
-            widget: Widget to enable drag and drop on
+            widget: Widget to enable drag and drop on (deprecated)
             input_handler: Input handler instance
         """
+        logger.warning("DragDropHandler is deprecated. PySide6 uses native drag-and-drop in ImageDropArea.")
         self.widget = widget
         self.input_handler = input_handler
-        
-        self._setup_drag_drop()
-    
+
     def _setup_drag_drop(self) -> None:
-        """Set up drag and drop functionality."""
-        try:
-            # Try to import tkinterdnd2
-            from tkinterdnd2 import DND_FILES, TkinterDnD
+        """Deprecated: Set up drag and drop functionality."""
+        logger.warning("DragDropHandler._setup_drag_drop is deprecated.")
+        pass
 
-            # Enable drag and drop
-            self.widget.drop_target_register(DND_FILES)
-            self.widget.dnd_bind('<<Drop>>', self._on_drop)
-            self.widget.dnd_bind('<<DragEnter>>', self._on_drag_enter)
-            self.widget.dnd_bind('<<DragLeave>>', self._on_drag_leave)
-
-            logger.info("Enhanced drag and drop enabled")
-
-        except (ImportError, Exception) as e:
-            logger.warning(f"Enhanced drag and drop not available ({e}), using basic drag and drop")
-            self._setup_basic_drag_drop()
-    
     def _setup_basic_drag_drop(self) -> None:
-        """Set up basic drag and drop using tkinter events."""
-        # Basic implementation using tkinter events
-        # This is limited but provides some functionality
-        self.widget.bind('<Button-1>', self._on_click)
-    
+        """Deprecated: Set up basic drag and drop."""
+        logger.warning("DragDropHandler._setup_basic_drag_drop is deprecated.")
+        pass
+
     def _on_drop(self, event) -> None:
-        """Handle drop event.
-        
-        Args:
-            event: Drop event
-        """
-        try:
-            # Get dropped files
-            files = event.data.split()
-            
-            # Process first valid image file
-            for file_path in files:
-                # Remove curly braces if present
-                file_path = file_path.strip('{}')
-                
-                if self.input_handler.is_supported_format(file_path):
-                    self.input_handler.handle_file_drop(file_path)
-                    break
-            
-        except Exception as e:
-            logger.error(f"Error handling drop event: {e}")
-    
+        """Deprecated: Handle drop event."""
+        logger.warning("DragDropHandler._on_drop is deprecated.")
+        pass
+
     def _on_drag_enter(self, event) -> None:
-        """Handle drag enter event."""
-        # Visual feedback for drag enter
-        self.widget.config(bg="lightblue")
-    
+        """Deprecated: Handle drag enter event."""
+        logger.warning("DragDropHandler._on_drag_enter is deprecated.")
+        pass
+
     def _on_drag_leave(self, event) -> None:
-        """Handle drag leave event."""
-        # Reset visual feedback
-        self.widget.config(bg="lightgray")
-    
+        """Deprecated: Handle drag leave event."""
+        logger.warning("DragDropHandler._on_drag_leave is deprecated.")
+        pass
+
     def _on_click(self, event) -> None:
-        """Handle click event for basic implementation."""
-        # This could trigger file browser as fallback
+        """Deprecated: Handle click event."""
+        logger.warning("DragDropHandler._on_click is deprecated.")
         pass

@@ -1,4 +1,4 @@
-"""GUI package for tkinter interface components."""
+"""GUI package for PySide6 interface components."""
 
 from .main_window import MainWindow
 from .components import (
