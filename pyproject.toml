@@ -29,7 +29,7 @@ classifiers = [
 dependencies = [
     "requests>=2.31.0",
     "Pillow>=10.0.0",
-    "tkinterdnd2>=0.3.0",
+    "pyside6>=6.5.0",
 ]
 
 [project.optional-dependencies]
@@ -130,10 +130,6 @@ exclude = [
     "build/",
     "dist/",
 ]
-
-[[tool.mypy.overrides]]
-module = "tkinterdnd2.*"
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

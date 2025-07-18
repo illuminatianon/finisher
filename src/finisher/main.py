@@ -3,6 +3,7 @@
 import sys
 import logging
 from typing import NoReturn
+from PySide6.QtWidgets import QApplication
 
 from .app_controller import ApplicationController
 from .config import ApplicationSettings
@@ -25,6 +26,12 @@ def setup_logging(level: str = "INFO") -> None:
 
 def main() -> NoReturn:
     """Main entry point for the application."""
+    # Create QApplication instance first
+    qt_app = QApplication(sys.argv)
+    qt_app.setApplicationName("Finisher")
+    qt_app.setApplicationDisplayName("Finisher - AI Image Upscaling Tool")
+    qt_app.setApplicationVersion("0.0.0")
+
     # Load settings for logging configuration
     settings = ApplicationSettings()
 

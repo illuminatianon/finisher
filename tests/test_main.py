@@ -14,7 +14,9 @@ def test_setup_logging():
 
 def test_main_keyboard_interrupt():
     """Test main function with keyboard interrupt."""
-    with patch('finisher.main.ApplicationController') as mock_controller:
+    with patch('finisher.main.QApplication') as mock_qapp, \
+         patch('finisher.main.ApplicationController') as mock_controller:
+
         mock_app = MagicMock()
         mock_controller.return_value = mock_app
         mock_app.run.side_effect = KeyboardInterrupt()
@@ -23,11 +25,14 @@ def test_main_keyboard_interrupt():
             main()
 
         assert exc_info.value.code == 0
+        mock_qapp.assert_called_once()
 
 
 def test_main_exception():
     """Test main function with exception."""
-    with patch('finisher.main.ApplicationController') as mock_controller:
+    with patch('finisher.main.QApplication') as mock_qapp, \
+         patch('finisher.main.ApplicationController') as mock_controller:
+
         mock_app = MagicMock()
         mock_controller.return_value = mock_app
         mock_app.run.side_effect = Exception("Test error")
@@ -36,3 +41,4 @@ def test_main_exception():
             main()
 
         assert exc_info.value.code == 1
+        mock_qapp.assert_called_once()

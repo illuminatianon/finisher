@@ -1,177 +1,170 @@
 """Main application window implementation."""
 
-import tkinter as tk
-from tkinter import ttk, filedialog, messagebox
 import logging
+import tempfile
+import os
 from typing import Optional, Callable
+from PySide6.QtWidgets import (
+    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
+    QPushButton, QMenuBar, QStatusBar, QMessageBox, QFileDialog,
+    QApplication
+)
+from PySide6.QtCore import Qt, QTimer
+from PySide6.QtGui import QAction, QKeySequence
 from .components import StatusBar, ImageDropArea, ConfigurationPanel
-from tkinterdnd2 import DND_FILES, TkinterDnD
 
 logger = logging.getLogger(__name__)
 
 
-class MainWindow:
+class MainWindow(QMainWindow):
     """Main application window for Finisher."""
-    
+
     def __init__(self, title: str = "Finisher - AI Image Upscaling Tool"):
         """Initialize the main window.
-        
+
         Args:
             title: Window title
         """
-        self.root = TkinterDnD.Tk()
-        self.root.title(title)
-        self.root.geometry("800x600")
-        self.root.minsize(600, 400)
-        
+        super().__init__()
+        self.setWindowTitle(title)
+        self.resize(800, 600)
+        self.setMinimumSize(600, 400)
+
         # Callbacks for external functionality
         self.on_image_dropped: Optional[Callable[[str], None]] = None
         self.on_file_selected: Optional[Callable[[str], None]] = None
         self.on_cancel_job: Optional[Callable[[], None]] = None
         self.on_emergency_stop: Optional[Callable[[], None]] = None
         self.on_config_changed: Optional[Callable[[dict], None]] = None
-        
+
         self._setup_ui()
         self._setup_menu()
         self._setup_bindings()
-        
+
         logger.info("Main window initialized")
     
     def _setup_ui(self) -> None:
         """Set up the user interface components."""
-        # Main container
-        main_frame = ttk.Frame(self.root)
-        main_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
-        
+        # Central widget
+        central_widget = QWidget()
+        self.setCentralWidget(central_widget)
+
+        # Main layout
+        main_layout = QVBoxLayout(central_widget)
+        main_layout.setContentsMargins(10, 10, 10, 10)
+        main_layout.setSpacing(10)
+
         # Top section - Configuration panel
-        config_frame = ttk.LabelFrame(main_frame, text="Configuration", padding=10)
-        config_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        self.config_panel = ConfigurationPanel(config_frame)
+        config_group = QGroupBox("Configuration")
+        main_layout.addWidget(config_group)
+
+        self.config_panel = ConfigurationPanel(config_group)
         self.config_panel.on_config_changed = self._on_config_changed
-        
+
         # Middle section - Image drop area
-        drop_frame = ttk.LabelFrame(main_frame, text="Image Input", padding=10)
-        drop_frame.pack(fill=tk.BOTH, expand=True, pady=(0, 10))
-        
-        self.drop_area = ImageDropArea(drop_frame)
+        drop_group = QGroupBox("Image Input")
+        main_layout.addWidget(drop_group, 1)  # Give it more space
+
+        self.drop_area = ImageDropArea(drop_group)
         self.drop_area.on_image_dropped = self._on_image_dropped
         self.drop_area.on_file_selected = self._on_file_selected
-        
-        # Bottom section - Control buttons
-        button_frame = ttk.Frame(main_frame)
-        button_frame.pack(fill=tk.X, pady=(0, 10))
-        
-        # File browser button
-        self.browse_button = ttk.Button(
-            button_frame,
-            text="Browse Files...",
-            command=self._browse_files
-        )
-        self.browse_button.pack(side=tk.LEFT, padx=(0, 10))
-        
-        # Cancel job button
-        self.cancel_button = ttk.Button(
-            button_frame,
-            text="Cancel Job",
-            command=self._cancel_job,
-            state=tk.DISABLED
-        )
-        self.cancel_button.pack(side=tk.LEFT, padx=(0, 10))
-        
-        # Emergency stop button
-        self.emergency_button = ttk.Button(
-            button_frame,
-            text="Emergency Stop",
-            command=self._emergency_stop,
-            style="Emergency.TButton"
-        )
-        self.emergency_button.pack(side=tk.RIGHT)
-        
-        # Status bar at bottom
-        self.status_bar = StatusBar(self.root)
-        
-        # Configure button styles
-        style = ttk.Style()
-        style.configure("Emergency.TButton", foreground="red")
-        style.configure("Success.TButton", foreground="green")
 
-        # Add tooltips and better visual feedback
+        # Bottom section - Control buttons
+        button_layout = QHBoxLayout()
+        main_layout.addLayout(button_layout)
+
+        # File browser button
+        self.browse_button = QPushButton("Browse Files...")
+        self.browse_button.clicked.connect(self._browse_files)
+        button_layout.addWidget(self.browse_button)
+
+        # Cancel job button
+        self.cancel_button = QPushButton("Cancel Job")
+        self.cancel_button.clicked.connect(self._cancel_job)
+        self.cancel_button.setEnabled(False)
+        button_layout.addWidget(self.cancel_button)
+
+        # Add stretch to push emergency button to the right
+        button_layout.addStretch()
+
+        # Emergency stop button
+        self.emergency_button = QPushButton("Emergency Stop")
+        self.emergency_button.clicked.connect(self._emergency_stop)
+        self.emergency_button.setStyleSheet("QPushButton { color: red; font-weight: bold; }")
+        button_layout.addWidget(self.emergency_button)
+
+        # Status bar at bottom
+        self.status_bar = StatusBar(self)
+
+        # Add tooltips
         self._setup_tooltips()
 
     def _setup_tooltips(self) -> None:
         """Set up tooltips for UI elements."""
-        # Simple tooltip implementation
-        def create_tooltip(widget, text):
-            def on_enter(event):
-                tooltip = tk.Toplevel()
-                tooltip.wm_overrideredirect(True)
-                tooltip.wm_geometry(f"+{event.x_root+10}+{event.y_root+10}")
-                label = tk.Label(tooltip, text=text, background="lightyellow",
-                               relief="solid", borderwidth=1, font=("Arial", 8))
-                label.pack()
-                widget.tooltip = tooltip
-
-            def on_leave(event):
-                if hasattr(widget, 'tooltip'):
-                    widget.tooltip.destroy()
-                    del widget.tooltip
-
-            widget.bind("<Enter>", on_enter)
-            widget.bind("<Leave>", on_leave)
-
         # Add tooltips to buttons
-        create_tooltip(self.browse_button, "Browse for image files (Ctrl+O)")
-        create_tooltip(self.cancel_button, "Cancel current processing job (Esc)")
-        create_tooltip(self.emergency_button, "Emergency stop - interrupts any Auto1111 job")
+        self.browse_button.setToolTip("Browse for image files (Ctrl+O)")
+        self.cancel_button.setToolTip("Cancel current processing job (Esc)")
+        self.emergency_button.setToolTip("Emergency stop - interrupts any Auto1111 job")
 
         # Add tooltip to drop area
-        create_tooltip(self.drop_area.drop_frame,
-                      "Drop image files here or paste from clipboard (Ctrl+V)")
+        self.drop_area.setToolTip("Drop image files here or paste from clipboard (Ctrl+V)")
 
     def _setup_menu(self) -> None:
         """Set up the application menu."""
-        menubar = tk.Menu(self.root)
-        self.root.config(menu=menubar)
-        
+        menubar = self.menuBar()
+
         # File menu
-        file_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="File", menu=file_menu)
-        file_menu.add_command(label="Open Image...", command=self._browse_files)
-        file_menu.add_separator()
-        file_menu.add_command(label="Exit", command=self.root.quit)
-        
+        file_menu = menubar.addMenu("&File")
+
+        open_action = QAction("&Open Image...", self)
+        open_action.setShortcut(QKeySequence.StandardKey.Open)
+        open_action.triggered.connect(self._browse_files)
+        file_menu.addAction(open_action)
+
+        file_menu.addSeparator()
+
+        exit_action = QAction("E&xit", self)
+        exit_action.setShortcut(QKeySequence.StandardKey.Quit)
+        exit_action.triggered.connect(self.close)
+        file_menu.addAction(exit_action)
+
         # Edit menu
-        edit_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Edit", menu=edit_menu)
-        edit_menu.add_command(label="Paste Image", command=self._paste_image)
-        
+        edit_menu = menubar.addMenu("&Edit")
+
+        paste_action = QAction("&Paste Image", self)
+        paste_action.setShortcut(QKeySequence.StandardKey.Paste)
+        paste_action.triggered.connect(self._paste_image)
+        edit_menu.addAction(paste_action)
+
         # Help menu
-        help_menu = tk.Menu(menubar, tearoff=0)
-        menubar.add_cascade(label="Help", menu=help_menu)
-        help_menu.add_command(label="About", command=self._show_about)
+        help_menu = menubar.addMenu("&Help")
+
+        about_action = QAction("&About", self)
+        about_action.triggered.connect(self._show_about)
+        help_menu.addAction(about_action)
     
     def _setup_bindings(self) -> None:
         """Set up keyboard bindings."""
-        self.root.bind('<Control-o>', lambda e: self._browse_files())
-        self.root.bind('<Control-v>', lambda e: self._paste_image())
-        self.root.bind('<Escape>', lambda e: self._cancel_job())
-        self.root.bind('<<BrowseFiles>>', lambda e: self._browse_files())
+        # Keyboard shortcuts are handled by the menu actions
+        # Additional shortcuts can be added here if needed
+        pass
     
     def _browse_files(self) -> None:
         """Open file browser dialog."""
-        filetypes = [
-            ("Image files", "*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp"),
-            ("PNG files", "*.png"),
-            ("JPEG files", "*.jpg *.jpeg"),
-            ("All files", "*.*")
-        ]
-        
-        filename = filedialog.askopenfilename(
-            title="Select Image File",
-            filetypes=filetypes
+        file_filter = (
+            "Image files (*.png *.jpg *.jpeg *.bmp *.tiff *.tif *.webp);;"
+            "PNG files (*.png);;"
+            "JPEG files (*.jpg *.jpeg);;"
+            "All files (*.*)"
         )
-        
+
+        filename, _ = QFileDialog.getOpenFileName(
+            self,
+            "Select Image File",
+            "",
+            file_filter
+        )
+
         if filename and self.on_file_selected:
             self.on_file_selected(filename)
     
@@ -182,16 +175,14 @@ class MainWindow:
             image = ImageGrab.grabclipboard()
 
             if image is None:
-                messagebox.showwarning("Clipboard", "No image found in clipboard")
+                QMessageBox.warning(self, "Clipboard", "No image found in clipboard")
                 return
 
             if not hasattr(image, 'save'):
-                messagebox.showwarning("Clipboard", "Clipboard content is not an image")
+                QMessageBox.warning(self, "Clipboard", "Clipboard content is not an image")
                 return
 
             # Create temporary file in docs/temp directory and trigger processing
-            import tempfile
-            import os
             from finisher.core.utils import get_docs_temp_dir
 
             docs_temp_dir = get_docs_temp_dir()
@@ -208,12 +199,12 @@ class MainWindow:
                 self.on_file_selected(temp_path)
 
             # Schedule cleanup
-            self.root.after(5000, lambda: self._cleanup_temp_file(temp_path))
+            QTimer.singleShot(5000, lambda: self._cleanup_temp_file(temp_path))
 
         except ImportError:
-            messagebox.showerror("Error", "PIL library not available for clipboard operations")
+            QMessageBox.critical(self, "Error", "PIL library not available for clipboard operations")
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to paste image: {e}")
+            QMessageBox.critical(self, "Error", f"Failed to paste image: {e}")
 
     def _cleanup_temp_file(self, file_path: str) -> None:
         """Clean up temporary file."""
@@ -246,18 +237,21 @@ class MainWindow:
     
     def _emergency_stop(self) -> None:
         """Handle emergency stop button."""
-        result = messagebox.askyesno(
+        result = QMessageBox.question(
+            self,
             "Emergency Stop",
             "This will interrupt any running Auto1111 job. Continue?",
-            icon="warning"
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            QMessageBox.StandardButton.No
         )
-        
-        if result and self.on_emergency_stop:
+
+        if result == QMessageBox.StandardButton.Yes and self.on_emergency_stop:
             self.on_emergency_stop()
-    
+
     def _show_about(self) -> None:
         """Show about dialog."""
-        messagebox.showinfo(
+        QMessageBox.about(
+            self,
             "About Finisher",
             "Finisher - AI Image Upscaling Tool\n\n"
             "Version: 0.0.0\n"
@@ -276,11 +270,11 @@ class MainWindow:
     
     def set_cancel_button_enabled(self, enabled: bool) -> None:
         """Enable or disable cancel button.
-        
+
         Args:
             enabled: True to enable, False to disable
         """
-        self.cancel_button.config(state=tk.NORMAL if enabled else tk.DISABLED)
+        self.cancel_button.setEnabled(enabled)
     
     def update_configuration_options(self, upscalers: list, models: list, 
                                    samplers: list, schedulers: list) -> None:
@@ -305,21 +299,21 @@ class MainWindow:
     def run(self) -> None:
         """Start the GUI event loop."""
         logger.info("Starting GUI event loop")
-        self.root.mainloop()
-    
+        self.show()
+
     def show_success_message(self, message: str) -> None:
         """Show success message to user.
 
         Args:
             message: Success message to display
         """
-        messagebox.showinfo("Success", message)
+        QMessageBox.information(self, "Success", message)
 
         # Also update drop area with success feedback
         self.drop_area.set_status("✓ " + message, "green")
 
         # Reset status after a few seconds
-        self.root.after(3000, lambda: self.drop_area.set_status(
+        QTimer.singleShot(3000, lambda: self.drop_area.set_status(
             "Drop image files here\nor click to browse", "darkgray"
         ))
 
@@ -329,13 +323,13 @@ class MainWindow:
         Args:
             message: Error message to display
         """
-        messagebox.showerror("Error", message)
+        QMessageBox.critical(self, "Error", message)
 
         # Also update drop area with error feedback
         self.drop_area.set_status("✗ " + message, "red")
 
         # Reset status after a few seconds
-        self.root.after(5000, lambda: self.drop_area.set_status(
+        QTimer.singleShot(5000, lambda: self.drop_area.set_status(
             "Drop image files here\nor click to browse", "darkgray"
         ))
 
@@ -357,4 +351,4 @@ class MainWindow:
 
     def destroy(self) -> None:
         """Destroy the window."""
-        self.root.destroy()
+        self.close()

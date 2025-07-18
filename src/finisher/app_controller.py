@@ -3,7 +3,7 @@
 import logging
 import threading
 from typing import Optional
-import tkinter as tk
+from PySide6.QtWidgets import QApplication
 
 from .gui import MainWindow
 from .api import Auto1111Client, ConfigurationManager
@@ -58,33 +58,33 @@ class ApplicationController:
     
     def initialize(self) -> bool:
         """Initialize the application.
-        
+
         Returns:
             True if initialization successful, False otherwise
         """
         try:
             logger.info("Initializing application")
-            
+
             # Create main window
             self.main_window = MainWindow()
-            self.error_handler.root = self.main_window.root
-            
+            # Note: PySide6 doesn't need root reference for error handler
+
             # Setup GUI callbacks
             self._setup_gui_callbacks()
-            
+
             # Setup input handler
             self._setup_input_handler()
-            
+
             # Load Auto1111 configuration in background
             self._load_configuration_async()
-            
+
             # Start status monitoring
             self.status_monitor.start_monitoring()
-            
+
             self.initialized = True
             logger.info("Application initialized successfully")
             return True
-            
+
         except Exception as e:
             error = self.error_handler.handle_exception(e, "Application initialization")
             logger.critical(f"Failed to initialize application: {error}")
@@ -95,11 +95,16 @@ class ApplicationController:
         if not self.initialized:
             if not self.initialize():
                 return
-        
+
         try:
             logger.info("Starting application")
             self.main_window.run()
-            
+
+            # Start the Qt event loop
+            app = QApplication.instance()
+            if app:
+                app.exec()
+
         except Exception as e:
             self.error_handler.handle_exception(e, "Application runtime")
         finally:
@@ -168,49 +173,45 @@ class ApplicationController:
         """Set up input handler with GUI."""
         if not self.main_window:
             return
-        
-        # Setup drag and drop on the drop area
-        from .core.input_handler import DragDropHandler
-        self.drag_drop_handler = DragDropHandler(
-            self.main_window.drop_area.drop_frame,
-            self.input_handler
-        )
-        
-        # Setup clipboard monitoring
-        from .core.input_handler import ClipboardMonitor
-        self.clipboard_monitor = ClipboardMonitor(
-            self.main_window.root,
-            self.input_handler
-        )
-        # Note: Clipboard monitoring is optional and can be enabled later
+
+        # Note: PySide6 drag-and-drop is handled natively by the ImageDropArea widget
+        # No additional setup needed for drag-and-drop
+
+        # Setup clipboard monitoring if needed
+        # Note: PySide6 clipboard handling is different from tkinter
+        # This can be implemented later if needed
+        pass
     
     def _load_configuration_async(self) -> None:
         """Load Auto1111 configuration in background thread."""
         def load_config():
             try:
-                self.main_window.update_status("Loading Auto1111 configuration...")
-                
+                if self.main_window:
+                    self.main_window.update_status("Loading Auto1111 configuration...")
+
                 # Load all configuration options
                 self.config_manager.load_all_options()
-                
+
                 # Update GUI with options
                 if self.main_window:
                     upscaler_names = [u.name for u in self.config_manager.upscalers]
                     model_names = [m.model_name for m in self.config_manager.models]
                     sampler_names = [s.name for s in self.config_manager.samplers]
                     scheduler_names = [s.name for s in self.config_manager.schedulers]
-                    
+
                     self.main_window.update_configuration_options(
                         upscaler_names, model_names, sampler_names, scheduler_names
                     )
-                
-                self.main_window.update_status("Ready")
+
+                if self.main_window:
+                    self.main_window.update_status("Ready")
                 logger.info("Configuration loaded successfully")
-                
+
             except Exception as e:
                 error = self.error_handler.handle_exception(e, "Configuration loading")
-                self.main_window.update_status(f"Configuration error: {error.user_message}")
-        
+                if self.main_window:
+                    self.main_window.update_status(f"Configuration error: {error.user_message}")
+
         thread = threading.Thread(target=load_config, daemon=True)
         thread.start()
     
