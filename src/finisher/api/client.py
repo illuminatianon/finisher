@@ -168,14 +168,22 @@ class Auto1111Client:
             'Accept': 'application/json'
         }
 
+        logger.info(f"Request URL: {self.base_url}/sdapi/v1/extra-single-image")
+        logger.info(f"Request headers: {headers}")
+
         response = self.session.post(
             f"{self.base_url}/sdapi/v1/extra-single-image",
             json=payload,
             headers=headers,
             timeout=self.timeout
         )
+
+        logger.info(f"Response status code: {response.status_code}")
+        logger.info(f"Response headers: {dict(response.headers)}")
+
         response.raise_for_status()
-        return response.json()
+        result = response.json()
+        return result
     
     def health_check(self) -> bool:
         """Check if Auto1111 API is available.

@@ -224,7 +224,26 @@ class UpscalingPipeline:
                 raise ValueError("No images returned from first pass")
             
             first_pass_image = first_pass_result['images'][0]
-            
+
+            # Save the first pass result to see what it looks like
+            try:
+                from .utils import decode_base64_to_image
+                import os
+                import tempfile
+
+                first_pass_img = decode_base64_to_image(first_pass_image)
+
+                # Save to a temporary file with a descriptive name
+                temp_dir = tempfile.gettempdir()
+                first_pass_path = os.path.join(temp_dir, f"finisher_first_pass_{self.current_job_id}.png")
+                first_pass_img.save(first_pass_path)
+
+                logger.info(f"Saved first pass result to: {first_pass_path}")
+                logger.info(f"First pass image size: {first_pass_img.size}")
+
+            except Exception as e:
+                logger.error(f"Failed to save first pass result image: {e}")
+
             # Transition to second pass
             self.status_monitor.start_second_pass()
             self._notify_progress("Starting second pass (extra-single-image)...", 0.8)
@@ -232,12 +251,34 @@ class UpscalingPipeline:
             # Second pass: extra-single-image for final enhancement
             second_pass_payload = config.to_extra_single_image_payload(
                 image=first_pass_image,
-                upscaling_resize=1  # Additional scaling for second pass
+                upscaling_resize=1,  # Additional scaling for second pass
             )
-            
+            second_pass_payload['show_extras_results'] = False
+
             logger.info("Executing second pass (extra-single-image)")
             second_pass_result = self.client.extra_single_image(second_pass_payload)
-            
+
+            # Save the result image to see what it looks like
+            if 'image' in second_pass_result:
+                from .utils import decode_base64_to_image
+                import os
+                import tempfile
+
+                try:
+                    result_image = decode_base64_to_image(second_pass_result['image'])
+
+                    # Save to a temporary file with a descriptive name
+                    temp_dir = tempfile.gettempdir()
+                    output_path = os.path.join(temp_dir, f"finisher_result_{self.current_job_id}.png")
+                    result_image.save(output_path)
+
+                    logger.info(f"Saved second pass result to: {output_path}")
+                    logger.info(f"Result image size: {result_image.size}")
+
+                except Exception as e:
+                    logger.error(f"Failed to save result image: {e}")
+            else:
+                logger.warning("No 'image' key found in second_pass_result")
             # Processing completed successfully
             self._notify_progress("Processing completed", 1.0)
             
