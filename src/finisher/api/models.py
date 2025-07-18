@@ -80,13 +80,16 @@ class ProcessingConfig:
     scheduler: str = "Automatic"
     
     def to_img2img_payload(self, init_images: List[str], prompt: str = "",
-                          negative_prompt: str = "") -> Dict[str, Any]:
+                          negative_prompt: str = "", width: int = 512,
+                          height: int = 512) -> Dict[str, Any]:
         """Convert to img2img API payload.
 
         Args:
             init_images: List of base64 encoded images
             prompt: Generation prompt
             negative_prompt: Negative prompt
+            width: Image width in pixels
+            height: Image height in pixels
 
         Returns:
             img2img API payload dictionary
@@ -121,6 +124,8 @@ class ProcessingConfig:
             "steps": int(self.steps),
             "sampler_name": self.sampler_name,
             "cfg_scale": float(self.cfg_scale),
+            "width": int(width),
+            "height": int(height),
             "batch_size": 1,
             "save_images": False,
             "scheduler": self.scheduler
@@ -140,6 +145,6 @@ class ProcessingConfig:
         return {
             "image": image,
             "upscaling_resize": upscaling_resize,
-            "upscaler_1": self.upscaler,
+            "upscaler_1": 'None',
             "save_images": True
         }

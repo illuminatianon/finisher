@@ -18,15 +18,15 @@ class ImageProcessor:
         """Initialize the image processor."""
         self.metadata_extractor = MetadataExtractor()
     
-    def prepare_image_for_processing(self, image_path: str) -> Tuple[str, str, str]:
+    def prepare_image_for_processing(self, image_path: str) -> Tuple[str, str, str, int, int]:
         """Prepare an image file for API processing.
-        
+
         Args:
             image_path: Path to the image file
-            
+
         Returns:
-            Tuple of (base64_image, prompt, negative_prompt)
-            
+            Tuple of (base64_image, prompt, negative_prompt, width, height)
+
         Raises:
             ValueError: If image format is invalid
             IOError: If image cannot be loaded
@@ -49,23 +49,24 @@ class ImageProcessor:
                 
                 # Encode to base64
                 base64_image = encode_image_to_base64(img)
-                
-                logger.info(f"Image prepared successfully. Size: {img.size}")
-                return base64_image, prompt, negative_prompt
+
+                width, height = img.size
+                logger.info(f"Image prepared successfully. Size: {width}x{height}")
+                return base64_image, prompt, negative_prompt, width, height
                 
         except Exception as e:
             logger.error(f"Failed to prepare image: {e}")
             raise IOError(f"Cannot load image: {e}")
     
-    def prepare_image_data_for_processing(self, image_data: bytes) -> Tuple[str, str, str]:
+    def prepare_image_data_for_processing(self, image_data: bytes) -> Tuple[str, str, str, int, int]:
         """Prepare raw image data for API processing.
-        
+
         Args:
             image_data: Raw image bytes
-            
+
         Returns:
-            Tuple of (base64_image, prompt, negative_prompt)
-            
+            Tuple of (base64_image, prompt, negative_prompt, width, height)
+
         Raises:
             ValueError: If image data is invalid
             IOError: If image cannot be processed
@@ -85,9 +86,10 @@ class ImageProcessor:
             
             # Encode to base64
             base64_image = encode_image_to_base64(img)
-            
-            logger.info(f"Image data prepared successfully. Size: {img.size}")
-            return base64_image, prompt, negative_prompt
+
+            width, height = img.size
+            logger.info(f"Image data prepared successfully. Size: {width}x{height}")
+            return base64_image, prompt, negative_prompt, width, height
             
         except Exception as e:
             logger.error(f"Failed to prepare image data: {e}")

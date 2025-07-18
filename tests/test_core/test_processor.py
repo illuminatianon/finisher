@@ -41,7 +41,7 @@ class TestImageProcessor:
         result = self.processor.prepare_image_for_processing("test.png")
         
         # Assertions
-        assert result == ("base64_encoded_image", "test prompt", "test negative")
+        assert result == ("base64_encoded_image", "test prompt", "test negative", 512, 512)
         mock_validate.assert_called_once_with("test.png")
         mock_open.assert_called_once_with("test.png")
     
@@ -84,7 +84,7 @@ class TestImageProcessor:
         result = self.processor.prepare_image_data_for_processing(image_data)
         
         # Assertions
-        assert result == ("base64_encoded_image", "test prompt", "test negative")
+        assert result == ("base64_encoded_image", "test prompt", "test negative", 512, 512)
         mock_open.assert_called_once()
     
     @patch('PIL.Image.open')

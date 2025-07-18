@@ -15,6 +15,23 @@ logger = logging.getLogger(__name__)
 _temp_files: List[str] = []
 
 
+def get_docs_temp_dir() -> str:
+    """Get the docs temporary directory for storing intermediate files.
+
+    Returns:
+        Path to docs temp directory
+    """
+    # Get project root (assuming this file is in src/finisher/core/)
+    current_file = Path(__file__)
+    project_root = current_file.parent.parent.parent.parent  # Go up 4 levels: core -> finisher -> src -> project_root
+    docs_temp_dir = project_root / "docs" / "temp"
+
+    # Create the temp directory if it doesn't exist
+    docs_temp_dir.mkdir(exist_ok=True)
+
+    return str(docs_temp_dir)
+
+
 def encode_image_to_base64(image: Image.Image, format: str = "PNG") -> str:
     """Encode PIL Image to base64 string.
     
@@ -105,32 +122,37 @@ def validate_image_format(file_path: str) -> bool:
 
 
 def create_temp_file(image: Image.Image, suffix: str = ".png") -> str:
-    """Create a temporary file for an image.
-    
+    """Create a temporary file for an image in the docs/temp directory.
+
     Args:
         image: PIL Image object
         suffix: File suffix/extension
-        
+
     Returns:
         Path to temporary file
-        
+
     Raises:
         IOError: If file creation fails
     """
     try:
-        # Create temporary file
-        temp_fd, temp_path = tempfile.mkstemp(suffix=suffix, prefix="finisher_")
+        # Create temporary file in docs/temp directory
+        docs_temp_dir = get_docs_temp_dir()
+        temp_fd, temp_path = tempfile.mkstemp(
+            suffix=suffix,
+            prefix="finisher_",
+            dir=docs_temp_dir
+        )
         os.close(temp_fd)  # Close file descriptor, we'll use the path
-        
+
         # Save image to temporary file
         image.save(temp_path)
-        
+
         # Track for cleanup
         _temp_files.append(temp_path)
-        
+
         logger.debug(f"Created temporary file: {temp_path}")
         return temp_path
-        
+
     except Exception as e:
         logger.error(f"Failed to create temporary file: {e}")
         raise IOError(f"Cannot create temporary file: {e}")

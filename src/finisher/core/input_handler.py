@@ -167,11 +167,17 @@ class InputHandler:
             Path to temporary file or None if failed
         """
         try:
-            # Create temporary file
+            # Create temporary file in docs/temp directory
+            from .utils import get_docs_temp_dir
             suffix = ".png"  # Always save as PNG for consistency
             prefix = f"finisher_{source}_"
-            
-            temp_fd, temp_path = tempfile.mkstemp(suffix=suffix, prefix=prefix)
+            docs_temp_dir = get_docs_temp_dir()
+
+            temp_fd, temp_path = tempfile.mkstemp(
+                suffix=suffix,
+                prefix=prefix,
+                dir=docs_temp_dir
+            )
             os.close(temp_fd)  # Close file descriptor
             
             # Convert to RGB if necessary (for PNG compatibility)

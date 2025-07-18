@@ -105,16 +105,23 @@ class TestCoreUtils:
     
     @patch('tempfile.mkstemp')
     @patch('os.close')
-    def test_create_temp_file_success(self, mock_close, mock_mkstemp):
+    @patch('finisher.core.utils.get_docs_temp_dir')
+    def test_create_temp_file_success(self, mock_get_docs_temp_dir, mock_close, mock_mkstemp):
         """Test successful temporary file creation."""
-        mock_mkstemp.return_value = (123, "/tmp/test_file.png")
+        mock_get_docs_temp_dir.return_value = "/project/docs/temp"
+        mock_mkstemp.return_value = (123, "/project/docs/temp/test_file.png")
         image = Mock(spec=Image.Image)
-        
+
         result = create_temp_file(image)
-        
-        assert result == "/tmp/test_file.png"
+
+        assert result == "/project/docs/temp/test_file.png"
         mock_close.assert_called_once_with(123)
-        image.save.assert_called_once_with("/tmp/test_file.png")
+        image.save.assert_called_once_with("/project/docs/temp/test_file.png")
+        mock_mkstemp.assert_called_once_with(
+            suffix=".png",
+            prefix="finisher_",
+            dir="/project/docs/temp"
+        )
     
     @patch('tempfile.mkstemp')
     def test_create_temp_file_error(self, mock_mkstemp):

@@ -159,10 +159,10 @@ class UpscalingPipeline:
             self._notify_progress("Preparing image...", 0.0)
             
             # Prepare image for processing
-            base64_image, prompt, negative_prompt = self.processor.prepare_image_for_processing(image_path)
-            
+            base64_image, prompt, negative_prompt, width, height = self.processor.prepare_image_for_processing(image_path)
+
             # Execute two-pass pipeline
-            self._execute_pipeline(base64_image, prompt, negative_prompt, config)
+            self._execute_pipeline(base64_image, prompt, negative_prompt, config, width, height)
             
         except Exception as e:
             logger.error(f"Error processing image: {e}")
@@ -181,10 +181,10 @@ class UpscalingPipeline:
             self._notify_progress("Preparing image data...", 0.0)
             
             # Prepare image data for processing
-            base64_image, prompt, negative_prompt = self.processor.prepare_image_data_for_processing(image_data)
-            
+            base64_image, prompt, negative_prompt, width, height = self.processor.prepare_image_data_for_processing(image_data)
+
             # Execute two-pass pipeline
-            self._execute_pipeline(base64_image, prompt, negative_prompt, config)
+            self._execute_pipeline(base64_image, prompt, negative_prompt, config, width, height)
             
         except Exception as e:
             logger.error(f"Error processing image data: {e}")
@@ -193,7 +193,8 @@ class UpscalingPipeline:
             self._cleanup_processing()
     
     def _execute_pipeline(self, base64_image: str, prompt: str,
-                         negative_prompt: str, config: ProcessingConfig) -> None:
+                         negative_prompt: str, config: ProcessingConfig,
+                         width: int, height: int) -> None:
         """Execute the two-pass upscaling pipeline.
 
         Args:
@@ -201,6 +202,8 @@ class UpscalingPipeline:
             prompt: Generation prompt
             negative_prompt: Negative prompt
             config: Processing configuration
+            width: Image width in pixels
+            height: Image height in pixels
         """
         # Register job with status monitor
         job_timestamp = self._generate_job_id()
@@ -213,7 +216,9 @@ class UpscalingPipeline:
             first_pass_payload = config.to_img2img_payload(
                 init_images=[base64_image],
                 prompt=prompt,
-                negative_prompt=negative_prompt
+                negative_prompt=negative_prompt,
+                width=width,
+                height=height
             )
 
             logger.info("Executing first pass (img2img)")
@@ -227,14 +232,13 @@ class UpscalingPipeline:
 
             # Save the first pass result to see what it looks like
             try:
-                from .utils import decode_base64_to_image
+                from .utils import decode_base64_to_image, get_docs_temp_dir
                 import os
-                import tempfile
 
                 first_pass_img = decode_base64_to_image(first_pass_image)
 
-                # Save to a temporary file with a descriptive name
-                temp_dir = tempfile.gettempdir()
+                # Save to docs/temp directory with a descriptive name
+                temp_dir = get_docs_temp_dir()
                 first_pass_path = os.path.join(temp_dir, f"finisher_first_pass_{self.current_job_id}.png")
                 first_pass_img.save(first_pass_path)
 
@@ -260,15 +264,14 @@ class UpscalingPipeline:
 
             # Save the result image to see what it looks like
             if 'image' in second_pass_result:
-                from .utils import decode_base64_to_image
+                from .utils import decode_base64_to_image, get_docs_temp_dir
                 import os
-                import tempfile
 
                 try:
                     result_image = decode_base64_to_image(second_pass_result['image'])
 
-                    # Save to a temporary file with a descriptive name
-                    temp_dir = tempfile.gettempdir()
+                    # Save to docs/temp directory with a descriptive name
+                    temp_dir = get_docs_temp_dir()
                     output_path = os.path.join(temp_dir, f"finisher_result_{self.current_job_id}.png")
                     result_image.save(output_path)
 

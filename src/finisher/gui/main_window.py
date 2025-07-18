@@ -188,18 +188,26 @@ class MainWindow:
                 messagebox.showwarning("Clipboard", "Clipboard content is not an image")
                 return
 
-            # Create temporary file and trigger processing
+            # Create temporary file in docs/temp directory and trigger processing
             import tempfile
             import os
+            from finisher.core.utils import get_docs_temp_dir
 
-            with tempfile.NamedTemporaryFile(suffix='.png', delete=False) as tmp:
-                image.save(tmp.name, 'PNG')
+            docs_temp_dir = get_docs_temp_dir()
+            temp_fd, temp_path = tempfile.mkstemp(
+                suffix='.png',
+                prefix='finisher_clipboard_',
+                dir=docs_temp_dir
+            )
+            os.close(temp_fd)
 
-                if self.on_file_selected:
-                    self.on_file_selected(tmp.name)
+            image.save(temp_path, 'PNG')
 
-                # Schedule cleanup
-                self.root.after(5000, lambda: self._cleanup_temp_file(tmp.name))
+            if self.on_file_selected:
+                self.on_file_selected(temp_path)
+
+            # Schedule cleanup
+            self.root.after(5000, lambda: self._cleanup_temp_file(temp_path))
 
         except ImportError:
             messagebox.showerror("Error", "PIL library not available for clipboard operations")
