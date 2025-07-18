@@ -103,9 +103,10 @@ class ProcessingConfig:
                    f"cfg_scale={self.cfg_scale} ({type(self.cfg_scale).__name__})")
 
         script_args = [
-            float(self.scale_factor),
+            '', # Need an empty argument here for some reason
             int(self.tile_overlap),
             self.upscaler,
+            float(self.scale_factor)
         ]
 
         logger.info(f"script_args after conversion: {script_args} (types: {[type(arg).__name__ for arg in script_args]})")
@@ -126,7 +127,7 @@ class ProcessingConfig:
         }
     
     def to_extra_single_image_payload(self, image: str, 
-                                    upscaling_resize: float = 1.5) -> Dict[str, Any]:
+                                    upscaling_resize: float = 1) -> Dict[str, Any]:
         """Convert to extra-single-image API payload.
         
         Args:
