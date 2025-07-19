@@ -7,7 +7,7 @@ from PySide6.QtWidgets import (
     QComboBox, QSpinBox, QDoubleSpinBox, QGridLayout,
     QGroupBox
 )
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import Qt, Signal, QByteArray, QBuffer, QIODevice
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
 
 logger = logging.getLogger(__name__)
@@ -127,6 +127,7 @@ class ImageDropArea(QWidget):
         super().__init__(parent)
         self.on_image_dropped: Optional[Callable[[str], None]] = None
         self.on_file_selected: Optional[Callable[[str], None]] = None
+        self.on_image_data_dropped: Optional[Callable[[bytes, str], None]] = None
 
         self._setup_ui()
         self._setup_drag_drop()
@@ -176,7 +177,8 @@ class ImageDropArea(QWidget):
     
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         """Handle drag enter event."""
-        if event.mimeData().hasUrls():
+        # Accept both file URLs and raw image data (e.g., from browsers)
+        if event.mimeData().hasUrls() or event.mimeData().hasImage():
             event.acceptProposedAction()
             self.instructions.setStyleSheet("""
                 QLabel {
@@ -206,22 +208,45 @@ class ImageDropArea(QWidget):
 
     def dropEvent(self, event: QDropEvent) -> None:
         """Handle file drop event."""
-        if not self.on_image_dropped:
-            return
-
         try:
-            # Get dropped files
-            urls = event.mimeData().urls()
+            mime_data = event.mimeData()
 
-            # Process first valid image file
-            for url in urls:
-                file_path = url.toLocalFile()
+            # First try to handle file URLs (traditional file drag-drop)
+            if mime_data.hasUrls() and self.on_image_dropped:
+                urls = mime_data.urls()
 
-                if self._is_image_file(file_path):
-                    self.on_image_dropped(file_path)
-                    break
+                # Process first valid image file
+                for url in urls:
+                    file_path = url.toLocalFile()
 
-            event.acceptProposedAction()
+                    if self._is_image_file(file_path):
+                        self.on_image_dropped(file_path)
+                        event.acceptProposedAction()
+                        self.dragLeaveEvent(None)
+                        return
+
+            # If no valid file URLs, try to handle raw image data (browser drag-drop)
+            if mime_data.hasImage() and self.on_image_data_dropped:
+                from PySide6.QtGui import QPixmap
+
+                # Get the image from mime data
+                pixmap = mime_data.imageData()
+                if isinstance(pixmap, QPixmap) and not pixmap.isNull():
+                    # Convert QPixmap to bytes
+                    byte_array = QByteArray()
+                    buffer = QBuffer(byte_array)
+                    buffer.open(QIODevice.OpenModeFlag.WriteOnly)
+                    pixmap.save(buffer, "PNG")
+                    buffer.close()
+
+                    image_bytes = byte_array.data()
+                    self.on_image_data_dropped(image_bytes, "browser_drag")
+                    event.acceptProposedAction()
+                    self.dragLeaveEvent(None)
+                    return
+
+            # If we get here, nothing was handled
+            logger.warning("Dropped content was not a valid image file or image data")
 
         except Exception as e:
             logger.error(f"Error handling drop event: {e}")

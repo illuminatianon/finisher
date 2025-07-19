@@ -33,6 +33,7 @@ class MainWindow(QMainWindow):
         # Callbacks for external functionality
         self.on_image_dropped: Optional[Callable[[str], None]] = None
         self.on_file_selected: Optional[Callable[[str], None]] = None
+        self.on_image_data_dropped: Optional[Callable[[bytes, str], None]] = None
         self.on_cancel_job: Optional[Callable[[], None]] = None
         self.on_emergency_stop: Optional[Callable[[], None]] = None
         self.on_config_changed: Optional[Callable[[dict], None]] = None
@@ -68,6 +69,7 @@ class MainWindow(QMainWindow):
         self.drop_area = ImageDropArea(drop_group)
         self.drop_area.on_image_dropped = self._on_image_dropped
         self.drop_area.on_file_selected = self._on_file_selected
+        self.drop_area.on_image_data_dropped = self._on_image_data_dropped
 
         # Bottom section - Control buttons
         button_layout = QHBoxLayout()
@@ -219,11 +221,16 @@ class MainWindow(QMainWindow):
         """Handle image dropped event."""
         if self.on_image_dropped:
             self.on_image_dropped(file_path)
-    
+
     def _on_file_selected(self, file_path: str) -> None:
         """Handle file selected event."""
         if self.on_file_selected:
             self.on_file_selected(file_path)
+
+    def _on_image_data_dropped(self, image_data: bytes, source: str) -> None:
+        """Handle raw image data dropped event."""
+        if self.on_image_data_dropped:
+            self.on_image_data_dropped(image_data, source)
     
     def _on_config_changed(self, config: dict) -> None:
         """Handle configuration changed event."""

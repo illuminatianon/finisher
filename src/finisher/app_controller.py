@@ -179,6 +179,7 @@ class ApplicationController:
 
         self.main_window.on_image_dropped = self._on_image_dropped
         self.main_window.on_file_selected = self._on_file_selected
+        self.main_window.on_image_data_dropped = self._on_image_data_dropped
         self.main_window.on_cancel_job = self._on_cancel_job
         self.main_window.on_emergency_stop = self._on_emergency_stop
         self.main_window.on_config_changed = self._on_config_changed
@@ -381,10 +382,14 @@ class ApplicationController:
     def _on_image_dropped(self, file_path: str) -> None:
         """Handle image dropped on GUI."""
         self.input_handler.handle_file_drop(file_path)
-    
+
     def _on_file_selected(self, file_path: str) -> None:
         """Handle file selected from browser."""
         self.input_handler.handle_file_drop(file_path)
+
+    def _on_image_data_dropped(self, image_data: bytes, source: str) -> None:
+        """Handle raw image data dropped on GUI."""
+        self.input_handler.handle_image_data(image_data, source)
     
     def _on_cancel_job(self) -> None:
         """Handle cancel job request."""
