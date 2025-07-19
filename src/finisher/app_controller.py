@@ -4,7 +4,7 @@ import logging
 import threading
 from typing import Optional
 from PySide6.QtWidgets import QApplication
-from PySide6.QtCore import QTimer
+from PySide6.QtCore import QTimer, QObject, Signal
 
 from .gui import MainWindow
 from .api import Auto1111Client, ConfigurationManager
@@ -18,6 +18,11 @@ from .api.models import ProcessingConfig
 logger = logging.getLogger(__name__)
 
 
+class StatusUpdateSignals(QObject):
+    """Signal emitter for thread-safe GUI updates."""
+    status_changed = Signal(object, float, object, object)  # status, progress, eta, job_info
+
+
 class ApplicationController:
     """Main application controller."""
     
@@ -25,9 +30,12 @@ class ApplicationController:
         """Initialize the application controller."""
         # Load settings
         self.settings = ApplicationSettings()
-        
+
         # Initialize error handler first
         self.error_handler = ErrorHandler()
+
+        # Initialize signal emitter for thread-safe GUI updates
+        self.status_signals = StatusUpdateSignals()
         
         # Initialize API components
         api_config = self.settings.get_api_config()
@@ -168,12 +176,15 @@ class ApplicationController:
         """Set up GUI callbacks."""
         if not self.main_window:
             return
-        
+
         self.main_window.on_image_dropped = self._on_image_dropped
         self.main_window.on_file_selected = self._on_file_selected
         self.main_window.on_cancel_job = self._on_cancel_job
         self.main_window.on_emergency_stop = self._on_emergency_stop
         self.main_window.on_config_changed = self._on_config_changed
+
+        # Connect status update signal for thread-safe GUI updates
+        self.status_signals.status_changed.connect(self._handle_status_update_signal)
     
     def _setup_input_handler(self) -> None:
         """Set up input handler with GUI."""
@@ -264,24 +275,29 @@ class ApplicationController:
         if not self.main_window:
             return
 
-        # Use QTimer.singleShot to ensure GUI updates happen on main thread
-        def update_gui():
-            # Update status bar
-            status_text = status.value
-            if job_info:
-                status_text += f" - {job_info}"
+        # Emit signal for thread-safe GUI update
+        self.status_signals.status_changed.emit(status, progress, eta, job_info)
 
-            # Show progress for processing states
-            show_progress = status in [JobStatus.PROCESSING, JobStatus.EXTERNAL]
-            progress_value = progress if show_progress else None
+    def _handle_status_update_signal(self, status: JobStatus, progress: float,
+                                   eta: Optional[float], job_info: Optional[str]) -> None:
+        """Handle status update signal on main thread."""
+        if not self.main_window:
+            return
 
-            self.main_window.update_status(status_text, progress_value)
+        # Update status bar
+        status_text = status.value
+        if job_info:
+            status_text += f" - {job_info}"
 
-            # Update cancel button state
-            can_cancel = status in [JobStatus.PROCESSING, JobStatus.FINALIZING]
-            self.main_window.set_cancel_button_enabled(can_cancel)
+        # Show progress for processing states (including finalizing)
+        show_progress = status in [JobStatus.PROCESSING, JobStatus.FINALIZING, JobStatus.EXTERNAL]
+        progress_value = progress if show_progress else None
 
-        QTimer.singleShot(0, update_gui)
+        self.main_window.update_status(status_text, progress_value)
+
+        # Update cancel button state
+        can_cancel = status in [JobStatus.PROCESSING, JobStatus.FINALIZING]
+        self.main_window.set_cancel_button_enabled(can_cancel)
     
     def _on_status_error(self, error_message: str) -> None:
         """Handle status monitor errors."""

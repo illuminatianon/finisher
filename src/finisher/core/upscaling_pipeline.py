@@ -60,8 +60,8 @@ class UpscalingPipeline:
             return False
         
         # Check if Auto1111 is available
-        if not self.status_monitor.is_idle():
-            logger.warning("Auto1111 is not idle, cannot start processing")
+        if not self.status_monitor.is_available():
+            logger.warning("Auto1111 is not available, cannot start processing")
             return False
         
         # Start processing in background thread
@@ -92,8 +92,8 @@ class UpscalingPipeline:
             logger.warning("Pipeline already processing")
             return False
         
-        if not self.status_monitor.is_idle():
-            logger.warning("Auto1111 is not idle, cannot start processing")
+        if not self.status_monitor.is_available():
+            logger.warning("Auto1111 is not available, cannot start processing")
             return False
         
         self.is_processing = True

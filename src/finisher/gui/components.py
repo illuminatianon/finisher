@@ -60,7 +60,8 @@ class StatusBar(QWidget):
         self.status_label.setText(status)
 
         if progress is not None:
-            self.progress_bar.setValue(int(progress * 100))
+            progress_percent = int(progress * 100)
+            self.progress_bar.setValue(progress_percent)
             self.progress_bar.setVisible(True)
         else:
             self.progress_bar.setVisible(False)

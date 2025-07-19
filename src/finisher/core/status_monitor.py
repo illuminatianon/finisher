@@ -140,14 +140,14 @@ class StatusMonitor:
             # Get progress information
             progress_data = self.client.get_progress()
             progress_info = self._parse_progress_data(progress_data)
-            
+
             # Determine job status
             new_status = self._determine_job_status(progress_info)
-            
+
             # Update status if changed
-            if (new_status != self.current_status or 
+            if (new_status != self.current_status or
                 abs(progress_info.progress - self.current_progress) > 0.01):
-                
+
                 self._update_status(
                     new_status,
                     progress_info.progress,
@@ -208,12 +208,11 @@ class StatusMonitor:
         if progress_info.state and progress_info.state.interrupted:
             return JobStatus.ERROR
         
-        # Check if idle
-        if progress_info.progress == 0.0:
-            return JobStatus.IDLE
-        
-        # Check if it's our job
-        if self._is_our_job(progress_info.state.job_timestamp if progress_info.state else None):
+        # Check if it's our job first (before checking for idle)
+        is_our_job = self._is_our_job(progress_info.state.job_timestamp if progress_info.state else None)
+
+        # If it's our job and we're in a pass, don't return IDLE even if progress is 0
+        if is_our_job and self.current_pass > 0:
             # Determine which pass we're in
             if self.current_pass == 1:
                 return JobStatus.PROCESSING
@@ -221,9 +220,17 @@ class StatusMonitor:
                 return JobStatus.FINALIZING
             else:
                 return JobStatus.PROCESSING  # Default to processing
-        else:
-            # External job
+
+        # Check if idle (only if it's not our job or we're not in a pass)
+        if progress_info.progress == 0.0:
+            return JobStatus.IDLE
+
+        # External job
+        if not is_our_job:
             return JobStatus.EXTERNAL
+
+        # Fallback to processing
+        return JobStatus.PROCESSING
     
     def _is_our_job(self, job_timestamp: Optional[str]) -> bool:
         """Check if a job timestamp belongs to us.
@@ -330,15 +337,25 @@ class StatusMonitor:
     
     def is_idle(self) -> bool:
         """Check if Auto1111 is idle.
-        
+
         Returns:
             True if idle, False otherwise
         """
         return self.current_status == JobStatus.IDLE
-    
+
+    def is_available(self) -> bool:
+        """Check if Auto1111 is available to start new jobs.
+
+        This means it's either idle or only processing our jobs that we can interrupt.
+
+        Returns:
+            True if available for new jobs, False otherwise
+        """
+        return self.current_status in [JobStatus.IDLE]
+
     def is_processing_our_job(self) -> bool:
         """Check if we're currently processing our job.
-        
+
         Returns:
             True if processing our job, False otherwise
         """
