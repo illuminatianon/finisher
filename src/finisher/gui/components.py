@@ -211,19 +211,39 @@ class ImageDropArea(QWidget):
         try:
             mime_data = event.mimeData()
 
-            # First try to handle file URLs (traditional file drag-drop)
-            if mime_data.hasUrls() and self.on_image_dropped:
+            # First try to handle URLs (both local files and HTTP URLs)
+            if mime_data.hasUrls():
                 urls = mime_data.urls()
 
-                # Process first valid image file
+                # Process first valid URL
                 for url in urls:
+                    url_string = url.toString()
                     file_path = url.toLocalFile()
 
-                    if self._is_image_file(file_path):
+                    # Handle local file paths
+                    if file_path and self._is_image_file(file_path) and self.on_image_dropped:
                         self.on_image_dropped(file_path)
                         event.acceptProposedAction()
                         self.dragLeaveEvent(None)
                         return
+
+                    # Handle HTTP URLs (e.g., from browser)
+                    elif url_string.startswith(('http://', 'https://')) and self.on_image_data_dropped:
+                        try:
+                            import requests
+                            response = requests.get(url_string, timeout=10)
+                            response.raise_for_status()
+
+                            # Check if it's an image by content type
+                            content_type = response.headers.get('content-type', '').lower()
+                            if content_type.startswith('image/'):
+                                self.on_image_data_dropped(response.content, f"http_url:{url_string}")
+                                event.acceptProposedAction()
+                                self.dragLeaveEvent(None)
+                                return
+                        except Exception as e:
+                            logger.error(f"Failed to download image from URL {url_string}: {e}")
+                            continue
 
             # If no valid file URLs, try to handle raw image data (browser drag-drop)
             if mime_data.hasImage() and self.on_image_data_dropped:
@@ -246,7 +266,9 @@ class ImageDropArea(QWidget):
                     return
 
             # If we get here, nothing was handled
-            logger.warning(f"Dropped content was not a valid image file or image data, got {mime_data.formats()} {mime_data.text()} instead!")
+            formats = mime_data.formats()
+            text_content = mime_data.text() if mime_data.hasText() else "no text"
+            logger.warning(f"Dropped content could not be processed as image. Formats: {formats}, Text: {text_content}")
 
         except Exception as e:
             logger.error(f"Error handling drop event: {e}")
