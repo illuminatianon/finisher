@@ -4,6 +4,7 @@ import logging
 import threading
 from typing import Optional
 from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import QTimer
 
 from .gui import MainWindow
 from .api import Auto1111Client, ConfigurationManager
@@ -204,76 +205,84 @@ class ApplicationController:
                     )
 
                 if self.main_window:
-                    self.main_window.update_status("Ready")
+                    QTimer.singleShot(0, lambda: self.main_window.update_status("Ready"))
                 logger.info("Configuration loaded successfully")
 
             except Exception as e:
                 error = self.error_handler.handle_exception(e, "Configuration loading")
                 if self.main_window:
-                    self.main_window.update_status(f"Configuration error: {error.user_message}")
+                    QTimer.singleShot(0, lambda: self.main_window.update_status(f"Configuration error: {error.user_message}"))
 
         thread = threading.Thread(target=load_config, daemon=True)
         thread.start()
     
-    def _on_status_changed(self, status: JobStatus, progress: float, 
+    def _on_status_changed(self, status: JobStatus, progress: float,
                           eta: Optional[float], job_info: Optional[str]) -> None:
         """Handle status monitor changes."""
         if not self.main_window:
             return
-        
-        # Update status bar
-        status_text = status.value
-        if job_info:
-            status_text += f" - {job_info}"
-        
-        # Show progress for processing states
-        show_progress = status in [JobStatus.PROCESSING, JobStatus.EXTERNAL]
-        progress_value = progress if show_progress else None
-        
-        self.main_window.update_status(status_text, progress_value)
-        
-        # Update cancel button state
-        can_cancel = status in [JobStatus.PROCESSING, JobStatus.FINALIZING]
-        self.main_window.set_cancel_button_enabled(can_cancel)
+
+        # Use QTimer.singleShot to ensure GUI updates happen on main thread
+        def update_gui():
+            # Update status bar
+            status_text = status.value
+            if job_info:
+                status_text += f" - {job_info}"
+
+            # Show progress for processing states
+            show_progress = status in [JobStatus.PROCESSING, JobStatus.EXTERNAL]
+            progress_value = progress if show_progress else None
+
+            self.main_window.update_status(status_text, progress_value)
+
+            # Update cancel button state
+            can_cancel = status in [JobStatus.PROCESSING, JobStatus.FINALIZING]
+            self.main_window.set_cancel_button_enabled(can_cancel)
+
+        QTimer.singleShot(0, update_gui)
     
     def _on_status_error(self, error_message: str) -> None:
         """Handle status monitor errors."""
         logger.warning(f"Status monitor error: {error_message}")
         if self.main_window:
-            self.main_window.update_status("Connection error")
+            QTimer.singleShot(0, lambda: self.main_window.update_status("Connection error"))
     
     def _on_job_started(self, job: Job) -> None:
         """Handle job started."""
         logger.info(f"Job started: {job.description}")
         if self.main_window:
-            self.main_window.update_status(f"Processing: {job.description}")
+            QTimer.singleShot(0, lambda: self.main_window.update_status(f"Processing: {job.description}"))
     
     def _on_job_progress(self, job: Job, progress: float) -> None:
         """Handle job progress updates."""
         if self.main_window:
-            self.main_window.update_status(f"Processing: {job.description}", progress)
+            QTimer.singleShot(0, lambda: self.main_window.update_status(f"Processing: {job.description}", progress))
     
     def _on_job_completed(self, job: Job) -> None:
         """Handle job completion."""
         logger.info(f"Job completed: {job.description}")
         if self.main_window:
-            self.main_window.update_status("Processing completed")
-            self.main_window.show_success_message("Image upscaling completed successfully!")
-            self.main_window.reset_ui_state()
+            def update_completion():
+                self.main_window.update_status("Processing completed")
+                self.main_window.show_success_message("Image upscaling completed successfully!")
+                self.main_window.reset_ui_state()
+            QTimer.singleShot(0, update_completion)
     
     def _on_job_cancelled(self, job: Job) -> None:
         """Handle job cancellation."""
         logger.info(f"Job cancelled: {job.description}")
         if self.main_window:
-            self.main_window.update_status("Processing cancelled")
+            QTimer.singleShot(0, lambda: self.main_window.update_status("Processing cancelled"))
     
     def _on_job_failed(self, job: Job, error_message: str) -> None:
         """Handle job failure."""
         logger.error(f"Job failed: {job.description} - {error_message}")
         if self.main_window:
-            self.main_window.update_status("Processing failed")
-            self.main_window.show_error_message(f"Processing failed: {error_message}")
-            self.main_window.reset_ui_state()
+            def update_failure():
+                self.main_window.update_status("Processing failed")
+                self.main_window.show_error_message(f"Processing failed: {error_message}")
+                self.main_window.reset_ui_state()
+            QTimer.singleShot(0, update_failure)
     
     def _on_image_received(self, source: str, path_or_data: str) -> None:
         """Handle image received from input handler."""
@@ -303,13 +312,13 @@ class ApplicationController:
         except Exception as e:
             error = self.error_handler.handle_exception(e, f"Processing image from {source}")
             if self.main_window:
-                self.main_window.show_error_message(error.user_message)
+                QTimer.singleShot(0, lambda: self.main_window.show_error_message(error.user_message))
     
     def _on_input_error(self, error_message: str) -> None:
         """Handle input handler errors."""
         logger.warning(f"Input error: {error_message}")
         if self.main_window:
-            self.main_window.drop_area.set_status(error_message, "red")
+            QTimer.singleShot(0, lambda: self.main_window.drop_area.set_status(error_message, "red"))
     
     def _on_image_dropped(self, file_path: str) -> None:
         """Handle image dropped on GUI."""
