@@ -237,7 +237,9 @@ class ImageDropArea(QWidget):
                             # Check if it's an image by content type
                             content_type = response.headers.get('content-type', '').lower()
                             if content_type.startswith('image/'):
-                                self.on_image_data_dropped(response.content, f"http_url:{url_string}")
+                                # Create a cleaner source name for the temp file
+                                source_name = f"browser_drag_{url.host()}" if url.host() else "browser_drag"
+                                self.on_image_data_dropped(response.content, source_name)
                                 event.acceptProposedAction()
                                 self.dragLeaveEvent(None)
                                 return
