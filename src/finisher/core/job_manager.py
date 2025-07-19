@@ -318,8 +318,8 @@ class JobManager:
         if self.current_job_id or not self.job_queue:
             return
         
-        if not self.status_monitor.is_idle():
-            logger.debug("Auto1111 not idle, waiting to start next job")
+        if not self.status_monitor.is_available():
+            logger.debug("Auto1111 not available, waiting to start next job")
             return
         
         # Get next job from queue
