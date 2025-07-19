@@ -246,7 +246,7 @@ class ImageDropArea(QWidget):
                     return
 
             # If we get here, nothing was handled
-            logger.warning("Dropped content was not a valid image file or image data")
+            logger.warning("Dropped content was not a valid image file or image data, got {mime_data.formats()} {mime_data.text()} instead!")
 
         except Exception as e:
             logger.error(f"Error handling drop event: {e}")
