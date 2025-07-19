@@ -47,12 +47,14 @@ class ApplicationController:
             self.client, self.status_monitor, self.upscaling_pipeline
         )
         self.input_handler = InputHandler()
-        
+
         # GUI components (initialized later)
         self.main_window: Optional[MainWindow] = None
-        
+
         # Application state
         self.initialized = False
+        self._pending_saved_config: Optional[dict] = None
+        self._config_loaded = False
         self.shutting_down = False
         
         self._setup_callbacks()
@@ -81,6 +83,9 @@ class ApplicationController:
 
             # Start status monitoring
             self.status_monitor.start_monitoring()
+
+            # Start configuration check timer on main thread
+            self._start_config_check_timer()
 
             self.initialized = True
             logger.info("Application initialized successfully")
@@ -200,12 +205,19 @@ class ApplicationController:
                     sampler_names = [s.name for s in self.config_manager.samplers]
                     scheduler_names = [s.name for s in self.config_manager.schedulers]
 
+                    # Update options first
                     self.main_window.update_configuration_options(
                         upscaler_names, model_names, sampler_names, scheduler_names
                     )
 
-                if self.main_window:
-                    QTimer.singleShot(0, lambda: self.main_window.update_status("Ready"))
+                    # Store the configuration data for main thread to apply
+                    saved_config = self.settings.get_processing_config()
+
+                    # Store config for later application on main thread
+                    self._pending_saved_config = saved_config
+
+                # Mark configuration as loaded
+                self._config_loaded = True
                 logger.info("Configuration loaded successfully")
 
             except Exception as e:
@@ -215,7 +227,37 @@ class ApplicationController:
 
         thread = threading.Thread(target=load_config, daemon=True)
         thread.start()
-    
+
+    def _start_config_check_timer(self) -> None:
+        """Start a timer to check for configuration loading completion."""
+        def check_config():
+            if self._config_loaded and self._pending_saved_config and self.main_window:
+                self.main_window.set_configuration(self._pending_saved_config)
+                self.main_window.update_status("Ready")
+                self._pending_saved_config = None
+                self._config_loaded = False
+            else:
+                # Check again in 100ms
+                QTimer.singleShot(100, check_config)
+
+        # Start checking
+        QTimer.singleShot(100, check_config)
+
+    def _apply_pending_config(self) -> None:
+        """Apply pending saved configuration to GUI on main thread."""
+        if self.main_window and self._pending_saved_config:
+            logger.info(f"Applying pending configuration to GUI: {self._pending_saved_config}")
+            self.main_window.set_configuration(self._pending_saved_config)
+            logger.info("Applied saved configuration to GUI")
+            self._pending_saved_config = None  # Clear after applying
+
+    def _apply_config_on_main_thread(self, config: dict) -> None:
+        """Apply saved configuration to GUI on main thread."""
+        if self.main_window:
+            logger.info(f"Applying configuration to GUI: {config}")
+            self.main_window.set_configuration(config)
+            logger.info("Applied saved configuration to GUI")
+
     def _on_status_changed(self, status: JobStatus, progress: float,
                           eta: Optional[float], job_info: Optional[str]) -> None:
         """Handle status monitor changes."""
@@ -342,8 +384,11 @@ class ApplicationController:
         processing_config = self.settings.get_processing_config()
         processing_config.update(config)
         self.settings.set_processing_config(processing_config)
-        
-        logger.debug(f"Configuration updated: {config}")
+
+        # Save settings to disk
+        self.settings.save_settings()
+
+        logger.debug(f"Configuration updated and saved: {config}")
     
     def _on_error(self, error) -> None:
         """Handle general errors."""

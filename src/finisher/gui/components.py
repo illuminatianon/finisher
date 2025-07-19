@@ -351,11 +351,18 @@ class ConfigurationPanel(QWidget):
             samplers: List of sampler names
             schedulers: List of scheduler names
         """
-        # Update upscaler options
-        self.upscaler_combo.clear()
-        self.upscaler_combo.addItems(upscalers)
-        if upscalers and self.upscaler_combo.currentText() == "":
-            self.upscaler_combo.setCurrentText(upscalers[0])
+        # Temporarily disconnect signals to prevent triggering config changes
+        self.upscaler_combo.currentTextChanged.disconnect()
+
+        try:
+            # Update upscaler options
+            self.upscaler_combo.clear()
+            self.upscaler_combo.addItems(upscalers)
+            if upscalers and self.upscaler_combo.currentText() == "":
+                self.upscaler_combo.setCurrentText(upscalers[0])
+        finally:
+            # Reconnect signals
+            self.upscaler_combo.currentTextChanged.connect(self._on_config_change)
 
     def get_configuration(self) -> dict:
         """Get current configuration.
@@ -376,11 +383,24 @@ class ConfigurationPanel(QWidget):
         Args:
             config: Configuration dictionary
         """
-        if "upscaler" in config:
-            self.upscaler_combo.setCurrentText(config["upscaler"])
-        if "scale_factor" in config:
-            self.scale_spin.setValue(config["scale_factor"])
-        if "denoising_strength" in config:
-            self.denoising_spin.setValue(config["denoising_strength"])
-        if "tile_overlap" in config:
-            self.tile_spin.setValue(config["tile_overlap"])
+        # Temporarily disconnect signals to prevent triggering config changes
+        self.upscaler_combo.currentTextChanged.disconnect()
+        self.scale_spin.valueChanged.disconnect()
+        self.denoising_spin.valueChanged.disconnect()
+        self.tile_spin.valueChanged.disconnect()
+
+        try:
+            if "upscaler" in config:
+                self.upscaler_combo.setCurrentText(config["upscaler"])
+            if "scale_factor" in config:
+                self.scale_spin.setValue(config["scale_factor"])
+            if "denoising_strength" in config:
+                self.denoising_spin.setValue(config["denoising_strength"])
+            if "tile_overlap" in config:
+                self.tile_spin.setValue(config["tile_overlap"])
+        finally:
+            # Reconnect signals
+            self.upscaler_combo.currentTextChanged.connect(self._on_config_change)
+            self.scale_spin.valueChanged.connect(self._on_config_change)
+            self.denoising_spin.valueChanged.connect(self._on_config_change)
+            self.tile_spin.valueChanged.connect(self._on_config_change)
