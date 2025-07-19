@@ -168,8 +168,12 @@ class InputHandler:
         try:
             # Create temporary file in docs/temp directory
             from .utils import get_docs_temp_dir
+            import re
+
             suffix = ".png"  # Always save as PNG for consistency
-            prefix = f"finisher_{source}_"
+            # Sanitize source name for use in filename (remove invalid characters)
+            safe_source = re.sub(r'[<>:"/\\|?*]', '_', source)
+            prefix = f"finisher_{safe_source}_"
             docs_temp_dir = get_docs_temp_dir()
 
             temp_fd, temp_path = tempfile.mkstemp(
