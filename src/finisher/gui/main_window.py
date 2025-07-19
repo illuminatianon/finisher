@@ -290,11 +290,19 @@ class MainWindow(QMainWindow):
     
     def get_configuration(self) -> dict:
         """Get current configuration from panel.
-        
+
         Returns:
             Configuration dictionary
         """
         return self.config_panel.get_configuration()
+
+    def set_configuration(self, config: dict) -> None:
+        """Set configuration values in panel.
+
+        Args:
+            config: Configuration dictionary
+        """
+        self.config_panel.set_configuration(config)
     
     def run(self) -> None:
         """Start the GUI event loop."""
