@@ -1,6 +1,5 @@
 {
   "name": "finisher",
-  "version": "0.0.0",
   "description": "Auto1111 based Image Upscaler",
   "private": true,
   "repository": {
@@ -8,7 +7,7 @@
     "url": "git@github.com:illuminatianon/finisher.git"
   },
   "license": "MIT",
-  "author": "illuminatianon <me@illuminati.com>",
+  "author": "Lumi <202341691+illuminatianon@users.noreply.github.com>",
   "type": "commonjs",
   "directories": {
     "doc": "docs"
