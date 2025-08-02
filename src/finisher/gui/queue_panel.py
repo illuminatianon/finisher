@@ -69,29 +69,60 @@ class QueueJobItem(QListWidgetItem):
 
         self.setText(f"{state_icon} {display_name}{progress_text}{batch_text}{priority_text}")
 
-        # Set styling based on state with better colors
-        if self.job.state == JobState.RUNNING:
-            self.setBackground(QColor(230, 255, 230))  # Very light green
-            self.setForeground(QColor(0, 100, 0))      # Dark green text
-        elif self.job.state == JobState.COMPLETED:
-            self.setBackground(QColor(240, 248, 255))  # Very light blue
-            self.setForeground(QColor(70, 70, 70))     # Dark gray text
-        elif self.job.state == JobState.FAILED:
-            self.setBackground(QColor(255, 240, 240))  # Very light red
-            self.setForeground(QColor(150, 0, 0))      # Dark red text
-        elif self.job.state == JobState.CANCELLED:
-            self.setBackground(QColor(255, 250, 230))  # Very light orange
-            self.setForeground(QColor(150, 100, 0))    # Dark orange text
-        elif self.job.state == JobState.QUEUED:
-            if self.job.priority > 0:
-                self.setBackground(QColor(255, 248, 220))  # Light yellow for high priority
-                self.setForeground(QColor(100, 80, 0))     # Dark yellow text
+        # Set styling based on state with dark mode compatible colors
+        # Get the current palette to detect dark mode
+        palette = self.listWidget().palette() if self.listWidget() else QPalette()
+        is_dark_mode = palette.color(QPalette.ColorRole.Window).lightness() < 128
+
+        if is_dark_mode:
+            # Dark mode colors
+            if self.job.state == JobState.RUNNING:
+                self.setBackground(QColor(40, 60, 40))     # Dark green
+                self.setForeground(QColor(144, 238, 144))  # Light green text
+            elif self.job.state == JobState.COMPLETED:
+                self.setBackground(QColor(40, 50, 60))     # Dark blue
+                self.setForeground(QColor(173, 216, 230))  # Light blue text
+            elif self.job.state == JobState.FAILED:
+                self.setBackground(QColor(60, 40, 40))     # Dark red
+                self.setForeground(QColor(255, 182, 193))  # Light red text
+            elif self.job.state == JobState.CANCELLED:
+                self.setBackground(QColor(60, 50, 30))     # Dark orange
+                self.setForeground(QColor(255, 218, 185))  # Light orange text
+            elif self.job.state == JobState.QUEUED:
+                if self.job.priority > 0:
+                    self.setBackground(QColor(60, 55, 30))     # Dark yellow for high priority
+                    self.setForeground(QColor(255, 255, 224))  # Light yellow text
+                else:
+                    # Use default dark theme colors
+                    self.setBackground(palette.color(QPalette.ColorRole.Base))
+                    self.setForeground(palette.color(QPalette.ColorRole.Text))
+            else:
+                self.setBackground(palette.color(QPalette.ColorRole.Base))
+                self.setForeground(palette.color(QPalette.ColorRole.Text))
+        else:
+            # Light mode colors (original)
+            if self.job.state == JobState.RUNNING:
+                self.setBackground(QColor(230, 255, 230))  # Very light green
+                self.setForeground(QColor(0, 100, 0))      # Dark green text
+            elif self.job.state == JobState.COMPLETED:
+                self.setBackground(QColor(240, 248, 255))  # Very light blue
+                self.setForeground(QColor(70, 70, 70))     # Dark gray text
+            elif self.job.state == JobState.FAILED:
+                self.setBackground(QColor(255, 240, 240))  # Very light red
+                self.setForeground(QColor(150, 0, 0))      # Dark red text
+            elif self.job.state == JobState.CANCELLED:
+                self.setBackground(QColor(255, 250, 230))  # Very light orange
+                self.setForeground(QColor(150, 100, 0))    # Dark orange text
+            elif self.job.state == JobState.QUEUED:
+                if self.job.priority > 0:
+                    self.setBackground(QColor(255, 248, 220))  # Light yellow for high priority
+                    self.setForeground(QColor(100, 80, 0))     # Dark yellow text
+                else:
+                    self.setBackground(QColor(255, 255, 255))  # White
+                    self.setForeground(QColor(0, 0, 0))        # Black text
             else:
                 self.setBackground(QColor(255, 255, 255))  # White
                 self.setForeground(QColor(0, 0, 0))        # Black text
-        else:
-            self.setBackground(QColor(255, 255, 255))  # White
-            self.setForeground(QColor(0, 0, 0))        # Black text
 
 
 class QueuePanel(QWidget):
@@ -145,10 +176,10 @@ class QueuePanel(QWidget):
         self.stats_label.setStyleSheet("""
             QLabel {
                 padding: 8px;
-                background-color: #f8f9fa;
-                border: 1px solid #dee2e6;
+                background-color: palette(alternate-base);
+                border: 1px solid palette(mid);
                 border-radius: 4px;
-                color: #495057;
+                color: palette(text);
                 font-size: 11px;
             }
         """)
@@ -167,27 +198,19 @@ class QueuePanel(QWidget):
         self.queue_list.itemSelectionChanged.connect(self._on_selection_changed)
         self.queue_list.itemDoubleClicked.connect(self._on_item_double_clicked)
 
-        # Improve list styling
+        # Improve list styling with dark mode support
         self.queue_list.setAlternatingRowColors(True)
         self.queue_list.setSpacing(2)
+        # Remove hardcoded styling to respect system theme
         self.queue_list.setStyleSheet("""
-            QListWidget {
-                border: 1px solid #ccc;
-                border-radius: 4px;
-                background-color: white;
-                selection-background-color: #e6f3ff;
-            }
             QListWidget::item {
                 padding: 8px;
-                border-bottom: 1px solid #eee;
                 min-height: 20px;
+                border-radius: 2px;
+                margin: 1px;
             }
             QListWidget::item:selected {
-                background-color: #e6f3ff;
-                border: 1px solid #0078d4;
-            }
-            QListWidget::item:hover {
-                background-color: #f5f5f5;
+                border: 1px solid palette(highlight);
             }
         """)
 
@@ -217,15 +240,16 @@ class QueuePanel(QWidget):
         self.pause_button.setStyleSheet("""
             QPushButton {
                 padding: 6px 12px;
-                border: 1px solid #ccc;
+                border: 1px solid palette(mid);
                 border-radius: 4px;
-                background-color: #f8f9fa;
+                background-color: palette(button);
+                color: palette(button-text);
             }
             QPushButton:hover {
-                background-color: #e9ecef;
+                background-color: palette(light);
             }
             QPushButton:pressed {
-                background-color: #dee2e6;
+                background-color: palette(dark);
             }
         """)
         button_layout.addWidget(self.pause_button)
@@ -246,17 +270,18 @@ class QueuePanel(QWidget):
         self.move_up_button.setStyleSheet("""
             QPushButton {
                 padding: 4px;
-                border: 1px solid #ccc;
+                border: 1px solid palette(mid);
                 border-radius: 4px;
-                background-color: #f8f9fa;
+                background-color: palette(button);
+                color: palette(button-text);
                 font-size: 12px;
             }
             QPushButton:hover:enabled {
-                background-color: #e9ecef;
+                background-color: palette(light);
             }
             QPushButton:disabled {
-                background-color: #f5f5f5;
-                color: #999;
+                background-color: palette(window);
+                color: palette(disabled, text);
             }
         """)
         button_layout.addWidget(self.move_up_button)

@@ -78,6 +78,8 @@ class EnhancedStatusBar(QWidget):
         batch_font = QFont()
         batch_font.setPointSize(8)
         self.batch_label.setFont(batch_font)
+        # Use system colors for dark mode compatibility
+        self.batch_label.setStyleSheet("color: palette(text);")
         batch_layout.addWidget(self.batch_label)
         
         self.batch_progress = QProgressBar()
@@ -101,6 +103,7 @@ class EnhancedStatusBar(QWidget):
         progress_font = QFont()
         progress_font.setPointSize(8)
         self.progress_label.setFont(progress_font)
+        self.progress_label.setStyleSheet("color: palette(text);")
         progress_layout.addWidget(self.progress_label)
         
         self.progress_bar = QProgressBar()
@@ -118,6 +121,7 @@ class EnhancedStatusBar(QWidget):
         eta_font = QFont()
         eta_font.setPointSize(8)
         self.eta_label.setFont(eta_font)
+        self.eta_label.setStyleSheet("color: palette(text);")
         layout.addWidget(self.eta_label)
     
     def set_queue_manager(self, queue_manager) -> None:
