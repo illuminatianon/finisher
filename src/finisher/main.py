@@ -17,10 +17,8 @@ def setup_logging(level: str = "INFO") -> None:
     """
     logging.basicConfig(
         level=getattr(logging, level.upper()),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(sys.stdout)
-        ]
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=[logging.StreamHandler(sys.stdout)],
     )
 
 
@@ -36,7 +34,7 @@ def main() -> NoReturn:
     settings = ApplicationSettings()
 
     # Set up logging
-    log_level = settings.get('app.log_level', 'INFO')
+    log_level = settings.get("app.log_level", "INFO")
     setup_logging(log_level)
 
     logger = logging.getLogger(__name__)

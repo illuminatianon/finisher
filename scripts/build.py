@@ -1,5 +1,4 @@
 import subprocess
-import sys
 import os
 
 os.environ["PYTHONPATH"] = "src"
@@ -11,13 +10,16 @@ os.environ["PYTHONPATH"] = "src"
 subprocess.run(["rm", "-rf", "build", "dist", "__pycache__"], check=True)
 
 # run pyinstaller
-subprocess.run([
-    "pyinstaller",
-    "--onefile",
-    "--noconsole",
-    "--icon=icon.ico",
-    "--name=finisher",
-    "launcher.py"
-], check=True)
+subprocess.run(
+    [
+        "pyinstaller",
+        "--onefile",
+        "--noconsole",
+        "--icon=icon.ico",
+        "--name=finisher",
+        "launcher.py",
+    ],
+    check=True,
+)
 
 print("build complete: dist/finisher")

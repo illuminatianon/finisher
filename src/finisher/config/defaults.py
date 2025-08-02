@@ -62,7 +62,15 @@ IMAGE_LIMITS = {
     "min_width": 64,
     "min_height": 64,
     "max_file_size": 50 * 1024 * 1024,  # 50MB
-    "supported_formats": ['.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp'],
+    "supported_formats": [
+        ".png",
+        ".jpg",
+        ".jpeg",
+        ".bmp",
+        ".tiff",
+        ".tif",
+        ".webp",
+    ],
 }
 
 # Status polling configuration

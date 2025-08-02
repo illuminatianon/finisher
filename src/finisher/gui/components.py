@@ -4,9 +4,16 @@ import logging
 import os
 from typing import Optional, Callable, List
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,
-    QComboBox, QSpinBox, QDoubleSpinBox, QGridLayout,
-    QGroupBox
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QLabel,
+    QProgressBar,
+    QComboBox,
+    QSpinBox,
+    QDoubleSpinBox,
+    QGridLayout,
+    QGroupBox,
 )
 from PySide6.QtCore import Qt, Signal, QByteArray, QBuffer, QIODevice
 from PySide6.QtGui import QDragEnterEvent, QDropEvent
@@ -44,11 +51,11 @@ class StatusBar(QWidget):
         layout.addWidget(self.progress_bar)
 
         # Add to parent's status bar if it's a QMainWindow
-        if hasattr(parent, 'statusBar') and callable(getattr(parent, 'statusBar')):
+        if hasattr(parent, "statusBar") and callable(getattr(parent, "statusBar")):
             parent.statusBar().addPermanentWidget(self)
         else:
             # If not a QMainWindow, add ourselves to the parent's layout
-            if hasattr(parent, 'layout') and parent.layout():
+            if hasattr(parent, "layout") and parent.layout():
                 parent.layout().addWidget(self)
 
     def update_status(self, status: str, progress: Optional[float] = None) -> None:
@@ -151,7 +158,8 @@ class ImageDropArea(QWidget):
         # Instructions label
         self.instructions = QLabel("Drop image files here\nor click to browse")
         self.instructions.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.instructions.setStyleSheet("""
+        self.instructions.setStyleSheet(
+            """
             QLabel {
                 background-color: lightgray;
                 color: darkgray;
@@ -160,13 +168,14 @@ class ImageDropArea(QWidget):
                 border-style: inset;
                 padding: 20px;
             }
-        """)
+        """
+        )
         self.instructions.setMinimumHeight(150)
         layout.addWidget(self.instructions)
 
         # Make the widget clickable
         self.instructions.mousePressEvent = self._on_click
-    
+
     def _setup_drag_drop(self) -> None:
         """Set up drag and drop functionality."""
         # Enable drag and drop
@@ -178,13 +187,14 @@ class ImageDropArea(QWidget):
         # Trigger file browser through callback
         if self.on_file_selected:
             self.on_file_selected("")  # Empty string to trigger file browser
-    
+
     def dragEnterEvent(self, event: QDragEnterEvent) -> None:
         """Handle drag enter event."""
         # Accept both file URLs and raw image data (e.g., from browsers)
         if event.mimeData().hasUrls() or event.mimeData().hasImage():
             event.acceptProposedAction()
-            self.instructions.setStyleSheet("""
+            self.instructions.setStyleSheet(
+                """
                 QLabel {
                     background-color: lightblue;
                     color: darkblue;
@@ -193,12 +203,14 @@ class ImageDropArea(QWidget):
                     border-style: inset;
                     padding: 20px;
                 }
-            """)
+            """
+            )
             self.instructions.setText("Drop image here")
 
     def dragLeaveEvent(self, event) -> None:
         """Handle drag leave event."""
-        self.instructions.setStyleSheet("""
+        self.instructions.setStyleSheet(
+            """
             QLabel {
                 background-color: lightgray;
                 color: darkgray;
@@ -207,7 +219,8 @@ class ImageDropArea(QWidget):
                 border-style: inset;
                 padding: 20px;
             }
-        """)
+        """
+        )
         self.instructions.setText("Drop image files here\nor click to browse")
 
     def dropEvent(self, event: QDropEvent) -> None:
@@ -232,24 +245,38 @@ class ImageDropArea(QWidget):
                                 local_files.append(file_path)
                         elif os.path.isdir(file_path):
                             directories.append(file_path)
-                    elif url_string.startswith(('http://', 'https://')) and self.on_image_data_dropped:
+                    elif (
+                        url_string.startswith(("http://", "https://"))
+                        and self.on_image_data_dropped
+                    ):
                         # Handle HTTP URLs (e.g., from browser)
                         try:
                             import requests
+
                             response = requests.get(url_string, timeout=10)
                             response.raise_for_status()
 
                             # Check if it's an image by content type
-                            content_type = response.headers.get('content-type', '').lower()
-                            if content_type.startswith('image/'):
+                            content_type = response.headers.get(
+                                "content-type", ""
+                            ).lower()
+                            if content_type.startswith("image/"):
                                 # Create a cleaner source name for the temp file
-                                source_name = f"browser_drag_{url.host()}" if url.host() else "browser_drag"
-                                self.on_image_data_dropped(response.content, source_name)
+                                source_name = (
+                                    f"browser_drag_{url.host()}"
+                                    if url.host()
+                                    else "browser_drag"
+                                )
+                                self.on_image_data_dropped(
+                                    response.content, source_name
+                                )
                                 event.acceptProposedAction()
                                 self.dragLeaveEvent(None)
                                 return
                         except Exception as e:
-                            logger.error(f"Failed to download image from URL {url_string}: {e}")
+                            logger.error(
+                                f"Failed to download image from URL {url_string}: {e}"
+                            )
                             continue
 
                 # Handle directories first (single directory drop)
@@ -299,26 +326,28 @@ class ImageDropArea(QWidget):
             # If we get here, nothing was handled
             formats = mime_data.formats()
             text_content = mime_data.text() if mime_data.hasText() else "no text"
-            logger.warning(f"Dropped content could not be processed as image. Formats: {formats}, Text: {text_content}")
+            logger.warning(
+                f"Dropped content could not be processed as image. Formats: {formats}, Text: {text_content}"
+            )
 
         except Exception as e:
             logger.error(f"Error handling drop event: {e}")
 
         # Reset appearance
         self.dragLeaveEvent(None)
-    
+
     def _is_image_file(self, file_path: str) -> bool:
         """Check if file is an image.
-        
+
         Args:
             file_path: Path to check
-            
+
         Returns:
             True if file is an image
         """
-        image_extensions = {'.png', '.jpg', '.jpeg', '.bmp', '.tiff', '.tif', '.webp'}
+        image_extensions = {".png", ".jpg", ".jpeg", ".bmp", ".tiff", ".tif", ".webp"}
         return any(file_path.lower().endswith(ext) for ext in image_extensions)
-    
+
     def set_status(self, text: str, color: str = "darkgray") -> None:
         """Set status text in the drop area.
 
@@ -328,7 +357,8 @@ class ImageDropArea(QWidget):
         """
         self.instructions.setText(text)
         # Update stylesheet with new color
-        self.instructions.setStyleSheet(f"""
+        self.instructions.setStyleSheet(
+            f"""
             QLabel {{
                 background-color: lightgray;
                 color: {color};
@@ -337,7 +367,8 @@ class ImageDropArea(QWidget):
                 border-style: inset;
                 padding: 20px;
             }}
-        """)
+        """
+        )
 
 
 class ConfigurationPanel(QWidget):
@@ -354,7 +385,7 @@ class ConfigurationPanel(QWidget):
 
         self._setup_ui()
         self._setup_bindings()
-    
+
     def _setup_ui(self) -> None:
         """Set up the UI components."""
         # Create layout for the parent group box
@@ -406,7 +437,7 @@ class ConfigurationPanel(QWidget):
         # Configure column stretch
         layout.setColumnStretch(1, 1)
         layout.setColumnStretch(3, 1)
-    
+
     def _setup_bindings(self) -> None:
         """Set up variable change bindings."""
         self.upscaler_combo.currentTextChanged.connect(self._on_config_change)
@@ -420,8 +451,13 @@ class ConfigurationPanel(QWidget):
             config = self.get_configuration()
             self.on_config_changed(config)
 
-    def update_options(self, upscalers: List[str], models: List[str],
-                      samplers: List[str], schedulers: List[str]) -> None:
+    def update_options(
+        self,
+        upscalers: List[str],
+        models: List[str],
+        samplers: List[str],
+        schedulers: List[str],
+    ) -> None:
         """Update available options.
 
         Args:
@@ -453,7 +489,7 @@ class ConfigurationPanel(QWidget):
             "upscaler": self.upscaler_combo.currentText(),
             "scale_factor": self.scale_spin.value(),
             "denoising_strength": self.denoising_spin.value(),
-            "tile_overlap": self.tile_spin.value()
+            "tile_overlap": self.tile_spin.value(),
         }
 
     def set_configuration(self, config: dict) -> None:

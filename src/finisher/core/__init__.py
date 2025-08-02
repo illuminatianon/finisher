@@ -10,8 +10,15 @@ from .enhanced_queue_manager import EnhancedQueueManager
 from .batch_input_handler import BatchInputHandler
 from .input_handler import InputHandler, ClipboardMonitor, DragDropHandler
 from .error_handler import (
-    ErrorHandler, FinisherError, NetworkError, APIError,
-    ImageError, FileError, ProcessingError, ErrorSeverity, ErrorCategory
+    ErrorHandler,
+    FinisherError,
+    NetworkError,
+    APIError,
+    ImageError,
+    FileError,
+    ProcessingError,
+    ErrorSeverity,
+    ErrorCategory,
 )
 from .utils import (
     encode_image_to_base64,

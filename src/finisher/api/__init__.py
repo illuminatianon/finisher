@@ -15,7 +15,7 @@ __all__ = [
     "Auto1111Client",
     "ConfigurationManager",
     "UpscalerInfo",
-    "ModelInfo", 
+    "ModelInfo",
     "SamplerInfo",
     "SchedulerInfo",
     "ProgressInfo",

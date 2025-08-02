@@ -25,7 +25,7 @@ test-cov: ## Run tests with coverage
 
 lint: ## Run linting
 	uv run black --check --diff .
-	uv run flake8 .
+	uv run flake8 src/ tests/
 
 format: ## Format code
 	uv run black .

@@ -7,15 +7,17 @@ from finisher.main import main, setup_logging
 
 def test_setup_logging():
     """Test logging setup."""
-    with patch('logging.basicConfig') as mock_config:
+    with patch("logging.basicConfig") as mock_config:
         setup_logging("DEBUG")
         mock_config.assert_called_once()
 
 
 def test_main_keyboard_interrupt():
     """Test main function with keyboard interrupt."""
-    with patch('finisher.main.QApplication') as mock_qapp, \
-         patch('finisher.main.ApplicationController') as mock_controller:
+    with (
+        patch("finisher.main.QApplication") as mock_qapp,
+        patch("finisher.main.ApplicationController") as mock_controller,
+    ):
 
         mock_app = MagicMock()
         mock_controller.return_value = mock_app
@@ -30,8 +32,10 @@ def test_main_keyboard_interrupt():
 
 def test_main_exception():
     """Test main function with exception."""
-    with patch('finisher.main.QApplication') as mock_qapp, \
-         patch('finisher.main.ApplicationController') as mock_controller:
+    with (
+        patch("finisher.main.QApplication") as mock_qapp,
+        patch("finisher.main.ApplicationController") as mock_controller,
+    ):
 
         mock_app = MagicMock()
         mock_controller.return_value = mock_app

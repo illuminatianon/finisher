@@ -5,13 +5,19 @@ import tempfile
 import os
 from typing import Optional, Callable, List
 from PySide6.QtWidgets import (
-    QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
-    QPushButton, QMenuBar, QStatusBar, QMessageBox, QFileDialog,
-    QApplication, QSplitter
+    QMainWindow,
+    QWidget,
+    QVBoxLayout,
+    QHBoxLayout,
+    QGroupBox,
+    QPushButton,
+    QMessageBox,
+    QFileDialog,
+    QSplitter,
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QKeySequence
-from .components import StatusBar, ImageDropArea, ConfigurationPanel
+from .components import ImageDropArea, ConfigurationPanel
 from .queue_panel import QueuePanel
 from .enhanced_status import EnhancedStatusBar
 
@@ -48,7 +54,7 @@ class MainWindow(QMainWindow):
         self._setup_bindings()
 
         logger.info("Main window initialized")
-    
+
     def _setup_ui(self) -> None:
         """Set up the user interface components."""
         # Central widget
@@ -109,7 +115,9 @@ class MainWindow(QMainWindow):
         # Emergency stop button
         self.emergency_button = QPushButton("Emergency Stop")
         self.emergency_button.clicked.connect(self._emergency_stop)
-        self.emergency_button.setStyleSheet("QPushButton { color: red; font-weight: bold; }")
+        self.emergency_button.setStyleSheet(
+            "QPushButton { color: red; font-weight: bold; }"
+        )
         button_layout.addWidget(self.emergency_button)
 
         content_splitter.addWidget(left_widget)
@@ -139,7 +147,9 @@ class MainWindow(QMainWindow):
         self.emergency_button.setToolTip("Emergency stop - interrupts any Auto1111 job")
 
         # Add tooltip to drop area
-        self.drop_area.setToolTip("Drop image files here or paste from clipboard (Ctrl+V)")
+        self.drop_area.setToolTip(
+            "Drop image files here or paste from clipboard (Ctrl+V)"
+        )
 
     def _setup_menu(self) -> None:
         """Set up the application menu."""
@@ -194,13 +204,13 @@ class MainWindow(QMainWindow):
         about_action = QAction("&About", self)
         about_action.triggered.connect(self._show_about)
         help_menu.addAction(about_action)
-    
+
     def _setup_bindings(self) -> None:
         """Set up keyboard bindings."""
         # Keyboard shortcuts are handled by the menu actions
         # Additional shortcuts can be added here if needed
         pass
-    
+
     def _browse_files(self) -> None:
         """Open file browser dialog."""
         file_filter = (
@@ -212,10 +222,7 @@ class MainWindow(QMainWindow):
 
         # Use getOpenFileNames for multiple file selection
         filenames, _ = QFileDialog.getOpenFileNames(
-            self,
-            "Select Image File(s)",
-            "",
-            file_filter
+            self, "Select Image File(s)", "", file_filter
         )
 
         if filenames:
@@ -227,19 +234,22 @@ class MainWindow(QMainWindow):
                 # Multiple files - use new callback
                 if self.on_multiple_files_dropped:
                     self.on_multiple_files_dropped(filenames)
-    
+
     def _paste_image(self) -> None:
         """Handle paste image from clipboard."""
         try:
             from PIL import ImageGrab
+
             image = ImageGrab.grabclipboard()
 
             if image is None:
                 QMessageBox.warning(self, "Clipboard", "No image found in clipboard")
                 return
 
-            if not hasattr(image, 'save'):
-                QMessageBox.warning(self, "Clipboard", "Clipboard content is not an image")
+            if not hasattr(image, "save"):
+                QMessageBox.warning(
+                    self, "Clipboard", "Clipboard content is not an image"
+                )
                 return
 
             # Create temporary file in docs/temp directory and trigger processing
@@ -247,13 +257,11 @@ class MainWindow(QMainWindow):
 
             docs_temp_dir = get_docs_temp_dir()
             temp_fd, temp_path = tempfile.mkstemp(
-                suffix='.png',
-                prefix='finisher_clipboard_',
-                dir=docs_temp_dir
+                suffix=".png", prefix="finisher_clipboard_", dir=docs_temp_dir
             )
             os.close(temp_fd)
 
-            image.save(temp_path, 'PNG')
+            image.save(temp_path, "PNG")
 
             if self.on_file_selected:
                 self.on_file_selected(temp_path)
@@ -262,7 +270,9 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(5000, lambda: self._cleanup_temp_file(temp_path))
 
         except ImportError:
-            QMessageBox.critical(self, "Error", "PIL library not available for clipboard operations")
+            QMessageBox.critical(
+                self, "Error", "PIL library not available for clipboard operations"
+            )
         except Exception as e:
             QMessageBox.critical(self, "Error", f"Failed to paste image: {e}")
 
@@ -270,11 +280,12 @@ class MainWindow(QMainWindow):
         """Clean up temporary file."""
         try:
             import os
+
             if os.path.exists(file_path):
                 os.unlink(file_path)
         except Exception:
             pass  # Ignore cleanup errors
-    
+
     def _on_image_dropped(self, file_path: str) -> None:
         """Handle image dropped event."""
         if self.on_image_dropped:
@@ -289,7 +300,7 @@ class MainWindow(QMainWindow):
         """Handle raw image data dropped event."""
         if self.on_image_data_dropped:
             self.on_image_data_dropped(image_data, source)
-    
+
     def _on_config_changed(self, config: dict) -> None:
         """Handle configuration changed event."""
         if self.on_config_changed:
@@ -325,22 +336,23 @@ class MainWindow(QMainWindow):
 
     def _toggle_queue_processing(self) -> None:
         """Toggle queue processing (pause/resume)."""
-        if hasattr(self, 'queue_panel') and self.queue_panel.queue_manager:
+        if hasattr(self, "queue_panel") and self.queue_panel.queue_manager:
             self.queue_panel._toggle_queue_processing()
 
     def _clear_completed_jobs(self) -> None:
         """Clear completed jobs from queue."""
-        if hasattr(self, 'queue_panel') and self.queue_panel.queue_manager:
+        if hasattr(self, "queue_panel") and self.queue_panel.queue_manager:
             self.queue_panel._clear_completed()
 
     def _cancel_all_jobs(self) -> None:
         """Cancel all jobs in queue."""
-        if hasattr(self, 'queue_panel') and self.queue_panel.queue_manager:
+        if hasattr(self, "queue_panel") and self.queue_panel.queue_manager:
             reply = QMessageBox.question(
-                self, "Cancel All Jobs",
+                self,
+                "Cancel All Jobs",
                 "Are you sure you want to cancel all jobs in the queue?",
                 QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-                QMessageBox.StandardButton.No
+                QMessageBox.StandardButton.No,
             )
 
             if reply == QMessageBox.StandardButton.Yes:
@@ -353,12 +365,12 @@ class MainWindow(QMainWindow):
                 # Cancel all active jobs
                 for job_id in list(queue_manager.active_jobs.keys()):
                     queue_manager.cancel_job(job_id)
-    
+
     def _cancel_job(self) -> None:
         """Handle cancel job button."""
         if self.on_cancel_job:
             self.on_cancel_job()
-    
+
     def _emergency_stop(self) -> None:
         """Handle emergency stop button."""
         result = QMessageBox.question(
@@ -366,7 +378,7 @@ class MainWindow(QMainWindow):
             "Emergency Stop",
             "This will interrupt any running Auto1111 job. Continue?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
-            QMessageBox.StandardButton.No
+            QMessageBox.StandardButton.No,
         )
 
         if result == QMessageBox.StandardButton.Yes and self.on_emergency_stop:
@@ -380,18 +392,18 @@ class MainWindow(QMainWindow):
             "Finisher - AI Image Upscaling Tool\n\n"
             "Version: 0.0.0\n"
             "Author: illuminatianon\n\n"
-            "Uses Automatic1111 API for AI-powered image upscaling."
+            "Uses Automatic1111 API for AI-powered image upscaling.",
         )
-    
+
     def update_status(self, status: str, progress: Optional[float] = None) -> None:
         """Update status bar.
-        
+
         Args:
             status: Status text
             progress: Progress value (0.0 to 1.0) or None to hide
         """
         self.status_bar.update_status(status, progress)
-    
+
     def set_cancel_button_enabled(self, enabled: bool) -> None:
         """Enable or disable cancel button.
 
@@ -399,11 +411,12 @@ class MainWindow(QMainWindow):
             enabled: True to enable, False to disable
         """
         self.cancel_button.setEnabled(enabled)
-    
-    def update_configuration_options(self, upscalers: list, models: list, 
-                                   samplers: list, schedulers: list) -> None:
+
+    def update_configuration_options(
+        self, upscalers: list, models: list, samplers: list, schedulers: list
+    ) -> None:
         """Update configuration panel options.
-        
+
         Args:
             upscalers: List of available upscalers
             models: List of available models
@@ -411,7 +424,7 @@ class MainWindow(QMainWindow):
             schedulers: List of available schedulers
         """
         self.config_panel.update_options(upscalers, models, samplers, schedulers)
-    
+
     def get_configuration(self) -> dict:
         """Get current configuration from panel.
 
@@ -427,7 +440,7 @@ class MainWindow(QMainWindow):
             config: Configuration dictionary
         """
         self.config_panel.set_configuration(config)
-    
+
     def run(self) -> None:
         """Start the GUI event loop."""
         logger.info("Starting GUI event loop")
@@ -445,9 +458,12 @@ class MainWindow(QMainWindow):
         self.drop_area.set_status("✓ " + message, "green")
 
         # Reset status after a few seconds
-        QTimer.singleShot(3000, lambda: self.drop_area.set_status(
-            "Drop image files here\nor click to browse", "darkgray"
-        ))
+        QTimer.singleShot(
+            3000,
+            lambda: self.drop_area.set_status(
+                "Drop image files here\nor click to browse", "darkgray"
+            ),
+        )
 
     def show_error_message(self, message: str) -> None:
         """Show error message to user.
@@ -461,9 +477,12 @@ class MainWindow(QMainWindow):
         self.drop_area.set_status("✗ " + message, "red")
 
         # Reset status after a few seconds
-        QTimer.singleShot(5000, lambda: self.drop_area.set_status(
-            "Drop image files here\nor click to browse", "darkgray"
-        ))
+        QTimer.singleShot(
+            5000,
+            lambda: self.drop_area.set_status(
+                "Drop image files here\nor click to browse", "darkgray"
+            ),
+        )
 
     def show_processing_feedback(self, message: str) -> None:
         """Show processing feedback to user.

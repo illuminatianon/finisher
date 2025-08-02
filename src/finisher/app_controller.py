@@ -10,9 +10,16 @@ from PySide6.QtCore import QTimer, QObject, Signal
 from .gui import MainWindow
 from .api import Auto1111Client, ConfigurationManager
 from .core import (
-    ImageProcessor, StatusMonitor, UpscalingPipeline, JobManager,
-    EnhancedQueueManager, BatchInputHandler, QueuedJob, QueueEventData,
-    InputHandler, ErrorHandler, JobStatus, Job
+    ImageProcessor,
+    StatusMonitor,
+    UpscalingPipeline,
+    EnhancedQueueManager,
+    BatchInputHandler,
+    QueueEventData,
+    InputHandler,
+    ErrorHandler,
+    JobStatus,
+    Job,
 )
 from .config import ApplicationSettings
 from .api.models import ProcessingConfig
@@ -22,12 +29,15 @@ logger = logging.getLogger(__name__)
 
 class StatusUpdateSignals(QObject):
     """Signal emitter for thread-safe GUI updates."""
-    status_changed = Signal(object, float, object, object)  # status, progress, eta, job_info
+
+    status_changed = Signal(
+        object, float, object, object
+    )  # status, progress, eta, job_info
 
 
 class ApplicationController:
     """Main application controller."""
-    
+
     def __init__(self):
         """Initialize the application controller."""
         # Load settings
@@ -38,15 +48,14 @@ class ApplicationController:
 
         # Initialize signal emitter for thread-safe GUI updates
         self.status_signals = StatusUpdateSignals()
-        
+
         # Initialize API components
         api_config = self.settings.get_api_config()
         self.client = Auto1111Client(
-            base_url=api_config['base_url'],
-            timeout=api_config['timeout']
+            base_url=api_config["base_url"], timeout=api_config["timeout"]
         )
         self.config_manager = ConfigurationManager(self.client)
-        
+
         # Initialize core components
         self.image_processor = ImageProcessor()
         self.status_monitor = StatusMonitor(self.client)
@@ -55,7 +64,10 @@ class ApplicationController:
         )
         # Use enhanced queue manager instead of basic job manager
         self.queue_manager = EnhancedQueueManager(
-            self.client, self.status_monitor, self.upscaling_pipeline, self.settings
+            self.client,
+            self.status_monitor,
+            self.upscaling_pipeline,
+            self.settings,
         )
         # Keep legacy job_manager reference for backward compatibility
         self.job_manager = self.queue_manager
@@ -71,9 +83,9 @@ class ApplicationController:
         self._pending_saved_config: Optional[dict] = None
         self._config_loaded = False
         self.shutting_down = False
-        
+
         self._setup_callbacks()
-    
+
     def initialize(self) -> bool:
         """Initialize the application.
 
@@ -110,7 +122,7 @@ class ApplicationController:
             error = self.error_handler.handle_exception(e, "Application initialization")
             logger.critical(f"Failed to initialize application: {error}")
             return False
-    
+
     def run(self) -> None:
         """Run the application."""
         if not self.initialized:
@@ -130,40 +142,41 @@ class ApplicationController:
             self.error_handler.handle_exception(e, "Application runtime")
         finally:
             self.shutdown()
-    
+
     def shutdown(self) -> None:
         """Shutdown the application."""
         if self.shutting_down:
             return
-        
+
         self.shutting_down = True
         logger.info("Shutting down application")
-        
+
         try:
             # Shutdown enhanced queue manager
             self.queue_manager.shutdown()
 
             # Stop monitoring
             self.status_monitor.stop_monitoring()
-            
+
             # Save settings
             self.settings.save_settings()
-            
+
             # Cleanup temporary files
             from .core.utils import cleanup_temp_files
+
             cleanup_temp_files()
-            
+
             logger.info("Application shutdown complete")
-            
+
         except Exception as e:
             logger.error(f"Error during shutdown: {e}")
-    
+
     def _setup_callbacks(self) -> None:
         """Set up callbacks between components."""
         # Status monitor callbacks
         self.status_monitor.on_status_changed = self._on_status_changed
         self.status_monitor.on_error = self._on_status_error
-        
+
         # Enhanced queue manager callbacks
         self.queue_manager.on_queue_event = self._on_queue_event
         # Legacy callbacks for backward compatibility
@@ -172,7 +185,7 @@ class ApplicationController:
         self.queue_manager.on_job_completed = self._on_job_completed
         self.queue_manager.on_job_cancelled = self._on_job_cancelled
         self.queue_manager.on_job_failed = self._on_job_failed
-        
+
         # Input handler callbacks
         self.input_handler.on_image_received = self._on_image_received
         self.input_handler.on_error = self._on_input_error
@@ -181,11 +194,11 @@ class ApplicationController:
         self.batch_input_handler.on_batch_validated = self._on_batch_validated
         self.batch_input_handler.on_validation_error = self._on_validation_error
         self.batch_input_handler.on_progress = self._on_batch_progress
-        
+
         # Error handler callbacks
         self.error_handler.on_error = self._on_error
         self.error_handler.on_critical_error = self._on_critical_error
-    
+
     def _setup_gui_callbacks(self) -> None:
         """Set up GUI callbacks."""
         if not self.main_window:
@@ -206,7 +219,7 @@ class ApplicationController:
 
         # Set up queue manager with GUI
         self.main_window.set_queue_manager(self.queue_manager)
-    
+
     def _setup_input_handler(self) -> None:
         """Set up input handler with GUI."""
         if not self.main_window:
@@ -219,9 +232,10 @@ class ApplicationController:
         # Note: PySide6 clipboard handling is different from tkinter
         # This can be implemented later if needed
         pass
-    
+
     def _load_configuration_async(self) -> None:
         """Load Auto1111 configuration in background thread."""
+
         def load_config():
             try:
                 if self.main_window:
@@ -255,13 +269,19 @@ class ApplicationController:
             except Exception as e:
                 error = self.error_handler.handle_exception(e, "Configuration loading")
                 if self.main_window:
-                    QTimer.singleShot(0, lambda: self.main_window.update_status(f"Configuration error: {error.user_message}"))
+                    QTimer.singleShot(
+                        0,
+                        lambda: self.main_window.update_status(
+                            f"Configuration error: {error.user_message}"
+                        ),
+                    )
 
         thread = threading.Thread(target=load_config, daemon=True)
         thread.start()
 
     def _start_config_check_timer(self) -> None:
         """Start a timer to check for configuration loading completion."""
+
         def check_config():
             if self._config_loaded and self._pending_saved_config and self.main_window:
                 self.main_window.set_configuration(self._pending_saved_config)
@@ -278,7 +298,9 @@ class ApplicationController:
     def _apply_pending_config(self) -> None:
         """Apply pending saved configuration to GUI on main thread."""
         if self.main_window and self._pending_saved_config:
-            logger.info(f"Applying pending configuration to GUI: {self._pending_saved_config}")
+            logger.info(
+                f"Applying pending configuration to GUI: {self._pending_saved_config}"
+            )
             self.main_window.set_configuration(self._pending_saved_config)
             logger.info("Applied saved configuration to GUI")
             self._pending_saved_config = None  # Clear after applying
@@ -290,8 +312,13 @@ class ApplicationController:
             self.main_window.set_configuration(config)
             logger.info("Applied saved configuration to GUI")
 
-    def _on_status_changed(self, status: JobStatus, progress: float,
-                          eta: Optional[float], job_info: Optional[str]) -> None:
+    def _on_status_changed(
+        self,
+        status: JobStatus,
+        progress: float,
+        eta: Optional[float],
+        job_info: Optional[str],
+    ) -> None:
         """Handle status monitor changes."""
         if not self.main_window:
             return
@@ -299,8 +326,13 @@ class ApplicationController:
         # Emit signal for thread-safe GUI update
         self.status_signals.status_changed.emit(status, progress, eta, job_info)
 
-    def _handle_status_update_signal(self, status: JobStatus, progress: float,
-                                   eta: Optional[float], job_info: Optional[str]) -> None:
+    def _handle_status_update_signal(
+        self,
+        status: JobStatus,
+        progress: float,
+        eta: Optional[float],
+        job_info: Optional[str],
+    ) -> None:
         """Handle status update signal on main thread."""
         if not self.main_window:
             return
@@ -311,7 +343,11 @@ class ApplicationController:
             status_text += f" - {job_info}"
 
         # Show progress for processing states (including finalizing)
-        show_progress = status in [JobStatus.PROCESSING, JobStatus.FINALIZING, JobStatus.EXTERNAL]
+        show_progress = status in [
+            JobStatus.PROCESSING,
+            JobStatus.FINALIZING,
+            JobStatus.EXTERNAL,
+        ]
         progress_value = progress if show_progress else None
 
         self.main_window.update_status(status_text, progress_value)
@@ -319,56 +355,80 @@ class ApplicationController:
         # Update cancel button state
         can_cancel = status in [JobStatus.PROCESSING, JobStatus.FINALIZING]
         self.main_window.set_cancel_button_enabled(can_cancel)
-    
+
     def _on_status_error(self, error_message: str) -> None:
         """Handle status monitor errors."""
         logger.warning(f"Status monitor error: {error_message}")
         if self.main_window:
-            QTimer.singleShot(0, lambda: self.main_window.update_status("Connection error"))
-    
+            QTimer.singleShot(
+                0, lambda: self.main_window.update_status("Connection error")
+            )
+
     def _on_job_started(self, job: Job) -> None:
         """Handle job started."""
         logger.info(f"Job started: {job.description}")
         if self.main_window:
-            QTimer.singleShot(0, lambda: self.main_window.update_status(f"Processing: {job.description}"))
-    
+            QTimer.singleShot(
+                0,
+                lambda: self.main_window.update_status(
+                    f"Processing: {job.description}"
+                ),
+            )
+
     def _on_job_progress(self, job: Job, progress: float) -> None:
         """Handle job progress updates."""
         if self.main_window:
-            QTimer.singleShot(0, lambda: self.main_window.update_status(f"Processing: {job.description}", progress))
-    
+            QTimer.singleShot(
+                0,
+                lambda: self.main_window.update_status(
+                    f"Processing: {job.description}", progress
+                ),
+            )
+
     def _on_job_completed(self, job: Job) -> None:
         """Handle job completion."""
         logger.info(f"Job completed: {job.description}")
         if self.main_window:
+
             def update_completion():
                 self.main_window.update_status("Processing completed")
-                self.main_window.show_success_message("Image upscaling completed successfully!")
+                self.main_window.show_success_message(
+                    "Image upscaling completed successfully!"
+                )
                 self.main_window.reset_ui_state()
+
             QTimer.singleShot(0, update_completion)
-    
+
     def _on_job_cancelled(self, job: Job) -> None:
         """Handle job cancellation."""
         logger.info(f"Job cancelled: {job.description}")
         if self.main_window:
-            QTimer.singleShot(0, lambda: self.main_window.update_status("Processing cancelled"))
-    
+            QTimer.singleShot(
+                0, lambda: self.main_window.update_status("Processing cancelled")
+            )
+
     def _on_job_failed(self, job: Job, error_message: str) -> None:
         """Handle job failure."""
         logger.error(f"Job failed: {job.description} - {error_message}")
         if self.main_window:
+
             def update_failure():
                 self.main_window.update_status("Processing failed")
-                self.main_window.show_error_message(f"Processing failed: {error_message}")
+                self.main_window.show_error_message(
+                    f"Processing failed: {error_message}"
+                )
                 self.main_window.reset_ui_state()
+
             QTimer.singleShot(0, update_failure)
-    
+
     def _on_image_received(self, source: str, path_or_data: str) -> None:
         """Handle image received from input handler."""
         try:
             # Show processing feedback
             if self.main_window:
-                self.main_window.show_processing_feedback(f"Processing image from {source}")
+                self.main_window.show_processing_feedback(
+                    f"Processing image from {source}"
+                )
 
             # Get current configuration
             config = self._get_current_processing_config()
@@ -380,7 +440,7 @@ class ApplicationController:
                 )
             else:
                 # Handle as image data
-                with open(path_or_data, 'rb') as f:
+                with open(path_or_data, "rb") as f:
                     image_data = f.read()
                 job_id = self.job_manager.queue_upscaling_job_from_data(
                     image_data, config, f"Upscaling from {source}"
@@ -389,16 +449,22 @@ class ApplicationController:
             logger.info(f"Queued upscaling job {job_id} from {source}")
 
         except Exception as e:
-            error = self.error_handler.handle_exception(e, f"Processing image from {source}")
+            error = self.error_handler.handle_exception(
+                e, f"Processing image from {source}"
+            )
             if self.main_window:
-                QTimer.singleShot(0, lambda: self.main_window.show_error_message(error.user_message))
-    
+                QTimer.singleShot(
+                    0, lambda: self.main_window.show_error_message(error.user_message)
+                )
+
     def _on_input_error(self, error_message: str) -> None:
         """Handle input handler errors."""
         logger.warning(f"Input error: {error_message}")
         if self.main_window:
-            QTimer.singleShot(0, lambda: self.main_window.drop_area.set_status(error_message, "red"))
-    
+            QTimer.singleShot(
+                0, lambda: self.main_window.drop_area.set_status(error_message, "red")
+            )
+
     def _on_image_dropped(self, file_path: str) -> None:
         """Handle image dropped on GUI."""
         self.input_handler.handle_file_drop(file_path)
@@ -418,7 +484,7 @@ class ApplicationController:
     def _on_image_data_dropped(self, image_data: bytes, source: str) -> None:
         """Handle raw image data dropped on GUI."""
         self.input_handler.handle_image_data(image_data, source)
-    
+
     def _on_cancel_job(self) -> None:
         """Handle cancel job request."""
         # For enhanced queue manager, we need to cancel the current active job
@@ -433,7 +499,7 @@ class ApplicationController:
         for job_id in active_jobs:
             self.queue_manager.cancel_job(job_id)
         self.queue_manager.pause_queue()
-    
+
     def _on_config_changed(self, config: dict) -> None:
         """Handle configuration changes."""
         # Update processing configuration in settings
@@ -445,11 +511,11 @@ class ApplicationController:
         self.settings.save_settings()
 
         logger.debug(f"Configuration updated and saved: {config}")
-    
+
     def _on_error(self, error) -> None:
         """Handle general errors."""
         logger.error(f"Application error: {error}")
-    
+
     def _on_critical_error(self, error) -> None:
         """Handle critical errors."""
         logger.critical(f"Critical error: {error}")
@@ -469,29 +535,46 @@ class ApplicationController:
             if event_data.job:
                 job = event_data.job
                 if event_data.event_type.value == "JOB_ADDED":
-                    QTimer.singleShot(0, lambda: self.main_window.update_status(
-                        f"Job queued: {job.get_display_name()}"
-                    ))
+                    QTimer.singleShot(
+                        0,
+                        lambda: self.main_window.update_status(
+                            f"Job queued: {job.get_display_name()}"
+                        ),
+                    )
                 elif event_data.event_type.value == "JOB_STARTED":
-                    QTimer.singleShot(0, lambda: self.main_window.update_status(
-                        f"Processing: {job.get_display_name()}"
-                    ))
+                    QTimer.singleShot(
+                        0,
+                        lambda: self.main_window.update_status(
+                            f"Processing: {job.get_display_name()}"
+                        ),
+                    )
                 elif event_data.event_type.value == "JOB_COMPLETED":
-                    QTimer.singleShot(0, lambda: self.main_window.update_status(
-                        f"Completed: {job.get_display_name()}"
-                    ))
+                    QTimer.singleShot(
+                        0,
+                        lambda: self.main_window.update_status(
+                            f"Completed: {job.get_display_name()}"
+                        ),
+                    )
                 elif event_data.event_type.value == "JOB_FAILED":
-                    QTimer.singleShot(0, lambda: self.main_window.update_status(
-                        f"Failed: {job.get_display_name()}"
-                    ))
+                    QTimer.singleShot(
+                        0,
+                        lambda: self.main_window.update_status(
+                            f"Failed: {job.get_display_name()}"
+                        ),
+                    )
                 elif event_data.event_type.value == "JOB_CANCELLED":
-                    QTimer.singleShot(0, lambda: self.main_window.update_status(
-                        f"Cancelled: {job.get_display_name()}"
-                    ))
+                    QTimer.singleShot(
+                        0,
+                        lambda: self.main_window.update_status(
+                            f"Cancelled: {job.get_display_name()}"
+                        ),
+                    )
 
         # Also notify the main window's queue components
         if self.main_window:
-            QTimer.singleShot(0, lambda: self.main_window.handle_queue_event(event_data))
+            QTimer.singleShot(
+                0, lambda: self.main_window.handle_queue_event(event_data)
+            )
 
     def _on_batch_validated(self, valid_files: List[str], batch_id: str) -> None:
         """Handle batch validation completion.
@@ -501,7 +584,9 @@ class ApplicationController:
             batch_id: Generated batch ID
         """
         try:
-            logger.info(f"Batch validated: {len(valid_files)} files, batch_id: {batch_id}")
+            logger.info(
+                f"Batch validated: {len(valid_files)} files, batch_id: {batch_id}"
+            )
 
             # Get current configuration
             config = self._get_current_processing_config()
@@ -509,28 +594,37 @@ class ApplicationController:
             # Create job specifications for the batch
             job_specs = []
             for file_path in valid_files:
-                job_specs.append({
-                    'source_path': file_path,
-                    'config': config,
-                    'description': f"Upscaling {os.path.basename(file_path)}"
-                })
+                job_specs.append(
+                    {
+                        "source_path": file_path,
+                        "config": config,
+                        "description": f"Upscaling {os.path.basename(file_path)}",
+                    }
+                )
 
             # Queue the batch
             batch_name = f"Batch of {len(valid_files)} files"
-            actual_batch_id, job_ids = self.queue_manager.queue_batch_jobs(job_specs, batch_name)
+            actual_batch_id, job_ids = self.queue_manager.queue_batch_jobs(
+                job_specs, batch_name
+            )
 
             # Update GUI
             if self.main_window:
-                QTimer.singleShot(0, lambda: self.main_window.update_status(
-                    f"Queued batch: {len(job_ids)} jobs"
-                ))
+                QTimer.singleShot(
+                    0,
+                    lambda: self.main_window.update_status(
+                        f"Queued batch: {len(job_ids)} jobs"
+                    ),
+                )
 
             logger.info(f"Queued batch {actual_batch_id} with {len(job_ids)} jobs")
 
         except Exception as e:
             error = self.error_handler.handle_exception(e, "Processing batch")
             if self.main_window:
-                QTimer.singleShot(0, lambda: self.main_window.show_error_message(error.user_message))
+                QTimer.singleShot(
+                    0, lambda: self.main_window.show_error_message(error.user_message)
+                )
 
     def _on_validation_error(self, error_message: str) -> None:
         """Handle batch validation errors.
@@ -540,7 +634,9 @@ class ApplicationController:
         """
         logger.warning(f"Batch validation error: {error_message}")
         if self.main_window:
-            QTimer.singleShot(0, lambda: self.main_window.show_error_message(error_message))
+            QTimer.singleShot(
+                0, lambda: self.main_window.show_error_message(error_message)
+            )
 
     def _on_batch_progress(self, message: str, current: int, total: int) -> None:
         """Handle batch processing progress.
@@ -552,9 +648,12 @@ class ApplicationController:
         """
         logger.debug(f"Batch progress: {message} ({current}/{total})")
         if self.main_window:
-            QTimer.singleShot(0, lambda: self.main_window.update_status(
-                f"{message} ({current}/{total})"
-            ))
+            QTimer.singleShot(
+                0,
+                lambda: self.main_window.update_status(
+                    f"{message} ({current}/{total})"
+                ),
+            )
 
     def handle_multiple_files(self, file_paths: List[str]) -> None:
         """Handle multiple files dropped or selected.
@@ -576,10 +675,10 @@ class ApplicationController:
             directory_path: Path to dropped directory
         """
         self.batch_input_handler.handle_directory_drop(directory_path)
-    
+
     def _get_current_processing_config(self) -> ProcessingConfig:
         """Get current processing configuration.
-        
+
         Returns:
             ProcessingConfig instance
         """
@@ -588,22 +687,22 @@ class ApplicationController:
             gui_config = self.main_window.get_configuration()
         else:
             gui_config = {}
-        
+
         # Get base configuration from settings
         base_config = self.settings.get_processing_config()
-        
+
         # Merge configurations
         merged_config = base_config.copy()
         merged_config.update(gui_config)
-        
+
         # Create ProcessingConfig object with proper type conversion
         return ProcessingConfig(
-            upscaler=merged_config.get('upscaler', 'Lanczos'),
-            scale_factor=float(merged_config.get('scale_factor', 2.5)),
-            denoising_strength=float(merged_config.get('denoising_strength', 0.15)),
-            tile_overlap=int(merged_config.get('tile_overlap', 64)),
-            steps=int(merged_config.get('steps', 25)),
-            sampler_name=merged_config.get('sampler_name', 'Euler a'),
-            cfg_scale=int(merged_config.get('cfg_scale', 10)),
-            scheduler=merged_config.get('scheduler', 'Automatic')
+            upscaler=merged_config.get("upscaler", "Lanczos"),
+            scale_factor=float(merged_config.get("scale_factor", 2.5)),
+            denoising_strength=float(merged_config.get("denoising_strength", 0.15)),
+            tile_overlap=int(merged_config.get("tile_overlap", 64)),
+            steps=int(merged_config.get("steps", 25)),
+            sampler_name=merged_config.get("sampler_name", "Euler a"),
+            cfg_scale=int(merged_config.get("cfg_scale", 10)),
+            scheduler=merged_config.get("scheduler", "Automatic"),
         )
