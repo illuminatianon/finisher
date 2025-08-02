@@ -47,7 +47,11 @@ class EnhancedQueueManager:
         self.max_queue_size: int = 50
         self.auto_process: bool = True
         self.queue_persistence: bool = True
-        self.persistence_file: str = "queue_state.json"
+
+        # Set persistence file in config directory
+        config_dir = Path.home() / ".finisher"
+        config_dir.mkdir(exist_ok=True)
+        self.persistence_file: str = str(config_dir / "queue_state.json")
         
         # Threading
         self._lock = threading.RLock()

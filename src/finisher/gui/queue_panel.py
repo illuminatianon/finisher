@@ -9,7 +9,7 @@ from PySide6.QtWidgets import (
     QListWidget, QListWidgetItem, QGroupBox, QProgressBar,
     QMenu, QMessageBox, QSplitter, QFrame, QTextEdit
 )
-from PySide6.QtCore import Qt, Signal, QTimer, pyqtSignal
+from PySide6.QtCore import Qt, Signal, QTimer
 from PySide6.QtGui import QAction, QFont, QColor, QPalette
 
 from ..core.queue_models import QueuedJob, BatchInfo, QueueEvent, QueueEventData, JobState
@@ -32,33 +32,66 @@ class QueueJobItem(QListWidgetItem):
     
     def update_display(self) -> None:
         """Update the display text and styling."""
-        # Create display text
+        # Create display text with better formatting
         display_name = self.job.get_display_name()
-        state_text = self.job.state.value
-        
+
+        # Format state with icons
+        state_icons = {
+            JobState.QUEUED: "⏳",
+            JobState.RUNNING: "🔄",
+            JobState.COMPLETED: "✅",
+            JobState.FAILED: "❌",
+            JobState.CANCELLED: "⏹️",
+            JobState.CANCELLING: "🛑"
+        }
+
+        state_icon = state_icons.get(self.job.state, "❓")
+
+        # Progress text
         if self.job.progress > 0 and self.job.state == JobState.RUNNING:
             progress_text = f" ({self.job.progress:.1%})"
         else:
             progress_text = ""
-        
+
+        # Batch indicator
         if self.job.batch_id:
-            batch_text = f" [Batch]"
+            batch_text = " 📦"
         else:
             batch_text = ""
-        
-        self.setText(f"{display_name} - {state_text}{progress_text}{batch_text}")
-        
-        # Set styling based on state
+
+        # Priority indicator
+        if self.job.priority > 0:
+            priority_text = " ⬆️"
+        elif self.job.priority < 0:
+            priority_text = " ⬇️"
+        else:
+            priority_text = ""
+
+        self.setText(f"{state_icon} {display_name}{progress_text}{batch_text}{priority_text}")
+
+        # Set styling based on state with better colors
         if self.job.state == JobState.RUNNING:
-            self.setBackground(QColor(200, 255, 200))  # Light green
+            self.setBackground(QColor(230, 255, 230))  # Very light green
+            self.setForeground(QColor(0, 100, 0))      # Dark green text
         elif self.job.state == JobState.COMPLETED:
-            self.setBackground(QColor(220, 220, 220))  # Light gray
+            self.setBackground(QColor(240, 248, 255))  # Very light blue
+            self.setForeground(QColor(70, 70, 70))     # Dark gray text
         elif self.job.state == JobState.FAILED:
-            self.setBackground(QColor(255, 200, 200))  # Light red
+            self.setBackground(QColor(255, 240, 240))  # Very light red
+            self.setForeground(QColor(150, 0, 0))      # Dark red text
         elif self.job.state == JobState.CANCELLED:
-            self.setBackground(QColor(255, 255, 200))  # Light yellow
+            self.setBackground(QColor(255, 250, 230))  # Very light orange
+            self.setForeground(QColor(150, 100, 0))    # Dark orange text
+        elif self.job.state == JobState.QUEUED:
+            if self.job.priority > 0:
+                self.setBackground(QColor(255, 248, 220))  # Light yellow for high priority
+                self.setForeground(QColor(100, 80, 0))     # Dark yellow text
+            else:
+                self.setBackground(QColor(255, 255, 255))  # White
+                self.setForeground(QColor(0, 0, 0))        # Black text
         else:
             self.setBackground(QColor(255, 255, 255))  # White
+            self.setForeground(QColor(0, 0, 0))        # Black text
 
 
 class QueuePanel(QWidget):
@@ -108,7 +141,17 @@ class QueuePanel(QWidget):
         layout.addWidget(title_label)
         
         # Queue statistics
-        self.stats_label = QLabel("Queue: 0 jobs")
+        self.stats_label = QLabel("📭 Queue is empty")
+        self.stats_label.setStyleSheet("""
+            QLabel {
+                padding: 8px;
+                background-color: #f8f9fa;
+                border: 1px solid #dee2e6;
+                border-radius: 4px;
+                color: #495057;
+                font-size: 11px;
+            }
+        """)
         layout.addWidget(self.stats_label)
         
         # Splitter for queue list and details
@@ -123,6 +166,31 @@ class QueuePanel(QWidget):
         self.queue_list.setDragDropMode(QListWidget.DragDropMode.InternalMove)
         self.queue_list.itemSelectionChanged.connect(self._on_selection_changed)
         self.queue_list.itemDoubleClicked.connect(self._on_item_double_clicked)
+
+        # Improve list styling
+        self.queue_list.setAlternatingRowColors(True)
+        self.queue_list.setSpacing(2)
+        self.queue_list.setStyleSheet("""
+            QListWidget {
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background-color: white;
+                selection-background-color: #e6f3ff;
+            }
+            QListWidget::item {
+                padding: 8px;
+                border-bottom: 1px solid #eee;
+                min-height: 20px;
+            }
+            QListWidget::item:selected {
+                background-color: #e6f3ff;
+                border: 1px solid #0078d4;
+            }
+            QListWidget::item:hover {
+                background-color: #f5f5f5;
+            }
+        """)
+
         queue_layout.addWidget(self.queue_list)
         
         splitter.addWidget(queue_group)
@@ -143,28 +211,62 @@ class QueuePanel(QWidget):
         
         # Control buttons
         button_layout = QHBoxLayout()
-        
-        self.pause_button = QPushButton("Pause Queue")
+
+        self.pause_button = QPushButton("⏸️ Pause Queue")
         self.pause_button.clicked.connect(self._toggle_queue_processing)
+        self.pause_button.setStyleSheet("""
+            QPushButton {
+                padding: 6px 12px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background-color: #f8f9fa;
+            }
+            QPushButton:hover {
+                background-color: #e9ecef;
+            }
+            QPushButton:pressed {
+                background-color: #dee2e6;
+            }
+        """)
         button_layout.addWidget(self.pause_button)
-        
-        self.clear_button = QPushButton("Clear Completed")
+
+        self.clear_button = QPushButton("🗑️ Clear Completed")
         self.clear_button.clicked.connect(self._clear_completed)
+        self.clear_button.setStyleSheet(self.pause_button.styleSheet())
         button_layout.addWidget(self.clear_button)
-        
+
         button_layout.addStretch()
-        
+
         # Reorder buttons
-        self.move_up_button = QPushButton("↑")
-        self.move_up_button.setMaximumWidth(30)
+        self.move_up_button = QPushButton("⬆️")
+        self.move_up_button.setMaximumWidth(35)
         self.move_up_button.clicked.connect(self._move_job_up)
         self.move_up_button.setEnabled(False)
+        self.move_up_button.setToolTip("Move job up in queue")
+        self.move_up_button.setStyleSheet("""
+            QPushButton {
+                padding: 4px;
+                border: 1px solid #ccc;
+                border-radius: 4px;
+                background-color: #f8f9fa;
+                font-size: 12px;
+            }
+            QPushButton:hover:enabled {
+                background-color: #e9ecef;
+            }
+            QPushButton:disabled {
+                background-color: #f5f5f5;
+                color: #999;
+            }
+        """)
         button_layout.addWidget(self.move_up_button)
-        
-        self.move_down_button = QPushButton("↓")
-        self.move_down_button.setMaximumWidth(30)
+
+        self.move_down_button = QPushButton("⬇️")
+        self.move_down_button.setMaximumWidth(35)
         self.move_down_button.clicked.connect(self._move_job_down)
         self.move_down_button.setEnabled(False)
+        self.move_down_button.setToolTip("Move job down in queue")
+        self.move_down_button.setStyleSheet(self.move_up_button.styleSheet())
         button_layout.addWidget(self.move_down_button)
         
         layout.addLayout(button_layout)
@@ -194,9 +296,9 @@ class QueuePanel(QWidget):
         
         # Handle specific events
         if event_data.event_type == QueueEvent.QUEUE_PAUSED:
-            self.pause_button.setText("Resume Queue")
+            self.pause_button.setText("▶️ Resume Queue")
         elif event_data.event_type == QueueEvent.QUEUE_RESUMED:
-            self.pause_button.setText("Pause Queue")
+            self.pause_button.setText("⏸️ Pause Queue")
     
     def _update_display(self) -> None:
         """Update the queue display."""
@@ -236,18 +338,34 @@ class QueuePanel(QWidget):
         if selected_job_id and selected_job_id in self.job_items:
             self.queue_list.setCurrentItem(self.job_items[selected_job_id])
         
-        # Update statistics
+        # Update statistics with better formatting
         status = self.queue_manager.get_queue_status()
-        stats_text = (f"Queue: {status['queued_jobs']} queued, "
-                     f"{status['active_jobs']} active, "
-                     f"{status['completed_jobs']} completed")
+
+        # Create a more readable stats display
+        stats_parts = []
+        if status['queued_jobs'] > 0:
+            stats_parts.append(f"⏳ {status['queued_jobs']} queued")
+        if status['active_jobs'] > 0:
+            stats_parts.append(f"🔄 {status['active_jobs']} active")
+        if status['completed_jobs'] > 0:
+            stats_parts.append(f"✅ {status['completed_jobs']} completed")
+
+        if stats_parts:
+            stats_text = " • ".join(stats_parts)
+        else:
+            stats_text = "📭 Queue is empty"
+
+        # Add pause indicator
+        if not status['auto_process']:
+            stats_text += " • ⏸️ PAUSED"
+
         self.stats_label.setText(stats_text)
         
         # Update pause button
         if status['auto_process']:
-            self.pause_button.setText("Pause Queue")
+            self.pause_button.setText("⏸️ Pause Queue")
         else:
-            self.pause_button.setText("Resume Queue")
+            self.pause_button.setText("▶️ Resume Queue")
     
     def _on_selection_changed(self) -> None:
         """Handle selection change in queue list."""
@@ -433,6 +551,9 @@ class QueuePanel(QWidget):
 
     def _move_job_up(self) -> None:
         """Move selected job up in queue."""
+        if not self.queue_manager:
+            return
+
         current_item = self.queue_list.currentItem()
         if not isinstance(current_item, QueueJobItem):
             return
@@ -449,6 +570,9 @@ class QueuePanel(QWidget):
 
     def _move_job_down(self) -> None:
         """Move selected job down in queue."""
+        if not self.queue_manager:
+            return
+
         current_item = self.queue_list.currentItem()
         if not isinstance(current_item, QueueJobItem):
             return
