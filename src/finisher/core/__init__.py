@@ -5,6 +5,9 @@ from .metadata import MetadataExtractor
 from .status_monitor import StatusMonitor, JobStatus
 from .upscaling_pipeline import UpscalingPipeline
 from .job_manager import JobManager, Job, JobType, JobState
+from .queue_models import QueuedJob, BatchInfo, QueueEvent, QueueEventData
+from .enhanced_queue_manager import EnhancedQueueManager
+from .batch_input_handler import BatchInputHandler
 from .input_handler import InputHandler, ClipboardMonitor, DragDropHandler
 from .error_handler import (
     ErrorHandler, FinisherError, NetworkError, APIError,
@@ -28,6 +31,12 @@ __all__ = [
     "Job",
     "JobType",
     "JobState",
+    "QueuedJob",
+    "BatchInfo",
+    "QueueEvent",
+    "QueueEventData",
+    "EnhancedQueueManager",
+    "BatchInputHandler",
     "InputHandler",
     "ClipboardMonitor",
     "DragDropHandler",

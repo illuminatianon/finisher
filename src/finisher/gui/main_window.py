@@ -3,15 +3,17 @@
 import logging
 import tempfile
 import os
-from typing import Optional, Callable
+from typing import Optional, Callable, List
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGroupBox,
     QPushButton, QMenuBar, QStatusBar, QMessageBox, QFileDialog,
-    QApplication
+    QApplication, QSplitter
 )
 from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QAction, QKeySequence
 from .components import StatusBar, ImageDropArea, ConfigurationPanel
+from .queue_panel import QueuePanel
+from .enhanced_status import EnhancedStatusBar
 
 logger = logging.getLogger(__name__)
 
@@ -37,6 +39,9 @@ class MainWindow(QMainWindow):
         self.on_cancel_job: Optional[Callable[[], None]] = None
         self.on_emergency_stop: Optional[Callable[[], None]] = None
         self.on_config_changed: Optional[Callable[[dict], None]] = None
+        # New batch callbacks
+        self.on_multiple_files_dropped: Optional[Callable[[List[str]], None]] = None
+        self.on_directory_dropped: Optional[Callable[[str], None]] = None
 
         self._setup_ui()
         self._setup_menu()
@@ -62,18 +67,30 @@ class MainWindow(QMainWindow):
         self.config_panel = ConfigurationPanel(config_group)
         self.config_panel.on_config_changed = self._on_config_changed
 
-        # Middle section - Image drop area
+        # Main content area with splitter
+        content_splitter = QSplitter(Qt.Orientation.Horizontal)
+        main_layout.addWidget(content_splitter, 1)
+
+        # Left side - Image input and controls
+        left_widget = QWidget()
+        left_layout = QVBoxLayout(left_widget)
+        left_layout.setContentsMargins(0, 0, 0, 0)
+
+        # Image drop area
         drop_group = QGroupBox("Image Input")
-        main_layout.addWidget(drop_group, 1)  # Give it more space
+        left_layout.addWidget(drop_group, 1)
 
         self.drop_area = ImageDropArea(drop_group)
         self.drop_area.on_image_dropped = self._on_image_dropped
         self.drop_area.on_file_selected = self._on_file_selected
         self.drop_area.on_image_data_dropped = self._on_image_data_dropped
+        # New batch callbacks
+        self.drop_area.on_multiple_files_dropped = self._on_multiple_files_dropped
+        self.drop_area.on_directory_dropped = self._on_directory_dropped
 
-        # Bottom section - Control buttons
+        # Control buttons
         button_layout = QHBoxLayout()
-        main_layout.addLayout(button_layout)
+        left_layout.addLayout(button_layout)
 
         # File browser button
         self.browse_button = QPushButton("Browse Files...")
@@ -95,8 +112,21 @@ class MainWindow(QMainWindow):
         self.emergency_button.setStyleSheet("QPushButton { color: red; font-weight: bold; }")
         button_layout.addWidget(self.emergency_button)
 
-        # Status bar at bottom
-        self.status_bar = StatusBar(self)
+        content_splitter.addWidget(left_widget)
+
+        # Right side - Queue panel
+        self.queue_panel = QueuePanel()
+        content_splitter.addWidget(self.queue_panel)
+
+        # Set splitter proportions (2:1 ratio)
+        content_splitter.setSizes([400, 200])
+
+        # Enhanced status bar
+        self.enhanced_status_bar = EnhancedStatusBar()
+        self.statusBar().addPermanentWidget(self.enhanced_status_bar)
+
+        # Keep legacy status bar reference for backward compatibility
+        self.status_bar = self.enhanced_status_bar
 
         # Add tooltips
         self._setup_tooltips()
@@ -138,6 +168,26 @@ class MainWindow(QMainWindow):
         paste_action.triggered.connect(self._paste_image)
         edit_menu.addAction(paste_action)
 
+        # Queue menu
+        queue_menu = menubar.addMenu("&Queue")
+
+        pause_action = QAction("&Pause Queue", self)
+        pause_action.setShortcut("Ctrl+P")
+        pause_action.triggered.connect(self._toggle_queue_processing)
+        queue_menu.addAction(pause_action)
+
+        clear_action = QAction("&Clear Completed", self)
+        clear_action.setShortcut("Ctrl+Shift+C")
+        clear_action.triggered.connect(self._clear_completed_jobs)
+        queue_menu.addAction(clear_action)
+
+        queue_menu.addSeparator()
+
+        cancel_all_action = QAction("Cancel &All Jobs", self)
+        cancel_all_action.setShortcut("Ctrl+Shift+X")
+        cancel_all_action.triggered.connect(self._cancel_all_jobs)
+        queue_menu.addAction(cancel_all_action)
+
         # Help menu
         help_menu = menubar.addMenu("&Help")
 
@@ -160,15 +210,23 @@ class MainWindow(QMainWindow):
             "All files (*.*)"
         )
 
-        filename, _ = QFileDialog.getOpenFileName(
+        # Use getOpenFileNames for multiple file selection
+        filenames, _ = QFileDialog.getOpenFileNames(
             self,
-            "Select Image File",
+            "Select Image File(s)",
             "",
             file_filter
         )
 
-        if filename and self.on_file_selected:
-            self.on_file_selected(filename)
+        if filenames:
+            if len(filenames) == 1:
+                # Single file - use existing callback
+                if self.on_file_selected:
+                    self.on_file_selected(filenames[0])
+            else:
+                # Multiple files - use new callback
+                if self.on_multiple_files_dropped:
+                    self.on_multiple_files_dropped(filenames)
     
     def _paste_image(self) -> None:
         """Handle paste image from clipboard."""
@@ -236,6 +294,65 @@ class MainWindow(QMainWindow):
         """Handle configuration changed event."""
         if self.on_config_changed:
             self.on_config_changed(config)
+
+    def _on_multiple_files_dropped(self, file_paths: List[str]) -> None:
+        """Handle multiple files dropped event."""
+        if self.on_multiple_files_dropped:
+            self.on_multiple_files_dropped(file_paths)
+
+    def _on_directory_dropped(self, directory_path: str) -> None:
+        """Handle directory dropped event."""
+        if self.on_directory_dropped:
+            self.on_directory_dropped(directory_path)
+
+    def set_queue_manager(self, queue_manager) -> None:
+        """Set the queue manager for the queue panel and status bar.
+
+        Args:
+            queue_manager: EnhancedQueueManager instance
+        """
+        self.queue_panel.set_queue_manager(queue_manager)
+        self.enhanced_status_bar.set_queue_manager(queue_manager)
+
+    def handle_queue_event(self, event_data) -> None:
+        """Handle queue events.
+
+        Args:
+            event_data: QueueEventData instance
+        """
+        self.queue_panel.handle_queue_event(event_data)
+        self.enhanced_status_bar.handle_queue_event(event_data)
+
+    def _toggle_queue_processing(self) -> None:
+        """Toggle queue processing (pause/resume)."""
+        if hasattr(self, 'queue_panel') and self.queue_panel.queue_manager:
+            self.queue_panel._toggle_queue_processing()
+
+    def _clear_completed_jobs(self) -> None:
+        """Clear completed jobs from queue."""
+        if hasattr(self, 'queue_panel') and self.queue_panel.queue_manager:
+            self.queue_panel._clear_completed()
+
+    def _cancel_all_jobs(self) -> None:
+        """Cancel all jobs in queue."""
+        if hasattr(self, 'queue_panel') and self.queue_panel.queue_manager:
+            reply = QMessageBox.question(
+                self, "Cancel All Jobs",
+                "Are you sure you want to cancel all jobs in the queue?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                QMessageBox.StandardButton.No
+            )
+
+            if reply == QMessageBox.StandardButton.Yes:
+                queue_manager = self.queue_panel.queue_manager
+
+                # Cancel all queued jobs
+                for job in list(queue_manager.job_queue):
+                    queue_manager.cancel_job(job.id)
+
+                # Cancel all active jobs
+                for job_id in list(queue_manager.active_jobs.keys()):
+                    queue_manager.cancel_job(job_id)
     
     def _cancel_job(self) -> None:
         """Handle cancel job button."""

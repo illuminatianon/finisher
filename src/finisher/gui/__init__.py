@@ -7,11 +7,16 @@ from .components import (
     ImageDropArea,
     ConfigurationPanel,
 )
+from .queue_panel import QueuePanel, QueueJobItem
+from .enhanced_status import EnhancedStatusBar
 
 __all__ = [
     "MainWindow",
     "StatusBar",
-    "ProgressIndicator", 
+    "ProgressIndicator",
     "ImageDropArea",
     "ConfigurationPanel",
+    "QueuePanel",
+    "QueueJobItem",
+    "EnhancedStatusBar",
 ]

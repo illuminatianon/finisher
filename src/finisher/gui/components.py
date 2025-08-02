@@ -1,6 +1,7 @@
 """GUI components for the main window."""
 
 import logging
+import os
 from typing import Optional, Callable, List
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QProgressBar,
@@ -128,6 +129,9 @@ class ImageDropArea(QWidget):
         self.on_image_dropped: Optional[Callable[[str], None]] = None
         self.on_file_selected: Optional[Callable[[str], None]] = None
         self.on_image_data_dropped: Optional[Callable[[bytes, str], None]] = None
+        # New callbacks for batch operations
+        self.on_multiple_files_dropped: Optional[Callable[[List[str]], None]] = None
+        self.on_directory_dropped: Optional[Callable[[str], None]] = None
 
         self._setup_ui()
         self._setup_drag_drop()
@@ -214,21 +218,22 @@ class ImageDropArea(QWidget):
             # First try to handle URLs (both local files and HTTP URLs)
             if mime_data.hasUrls():
                 urls = mime_data.urls()
+                local_files = []
+                directories = []
 
-                # Process first valid URL
+                # Collect all local files and directories
                 for url in urls:
                     url_string = url.toString()
                     file_path = url.toLocalFile()
 
-                    # Handle local file paths
-                    if file_path and self._is_image_file(file_path) and self.on_image_dropped:
-                        self.on_image_dropped(file_path)
-                        event.acceptProposedAction()
-                        self.dragLeaveEvent(None)
-                        return
-
-                    # Handle HTTP URLs (e.g., from browser)
+                    if file_path:
+                        if os.path.isfile(file_path):
+                            if self._is_image_file(file_path):
+                                local_files.append(file_path)
+                        elif os.path.isdir(file_path):
+                            directories.append(file_path)
                     elif url_string.startswith(('http://', 'https://')) and self.on_image_data_dropped:
+                        # Handle HTTP URLs (e.g., from browser)
                         try:
                             import requests
                             response = requests.get(url_string, timeout=10)
@@ -246,6 +251,30 @@ class ImageDropArea(QWidget):
                         except Exception as e:
                             logger.error(f"Failed to download image from URL {url_string}: {e}")
                             continue
+
+                # Handle directories first (single directory drop)
+                if len(directories) == 1 and len(local_files) == 0:
+                    if self.on_directory_dropped:
+                        self.on_directory_dropped(directories[0])
+                        event.acceptProposedAction()
+                        self.dragLeaveEvent(None)
+                        return
+
+                # Handle multiple files
+                elif len(local_files) > 1:
+                    if self.on_multiple_files_dropped:
+                        self.on_multiple_files_dropped(local_files)
+                        event.acceptProposedAction()
+                        self.dragLeaveEvent(None)
+                        return
+
+                # Handle single file (backward compatibility)
+                elif len(local_files) == 1:
+                    if self.on_image_dropped:
+                        self.on_image_dropped(local_files[0])
+                        event.acceptProposedAction()
+                        self.dragLeaveEvent(None)
+                        return
 
             # If no valid file URLs, try to handle raw image data (browser drag-drop)
             if mime_data.hasImage() and self.on_image_data_dropped:

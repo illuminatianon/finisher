@@ -1,8 +1,9 @@
 """Main application controller that wires all components together."""
 
 import logging
+import os
 import threading
-from typing import Optional
+from typing import Optional, List
 from PySide6.QtWidgets import QApplication
 from PySide6.QtCore import QTimer, QObject, Signal
 
@@ -10,6 +11,7 @@ from .gui import MainWindow
 from .api import Auto1111Client, ConfigurationManager
 from .core import (
     ImageProcessor, StatusMonitor, UpscalingPipeline, JobManager,
+    EnhancedQueueManager, BatchInputHandler, QueuedJob, QueueEventData,
     InputHandler, ErrorHandler, JobStatus, Job
 )
 from .config import ApplicationSettings
@@ -51,10 +53,15 @@ class ApplicationController:
         self.upscaling_pipeline = UpscalingPipeline(
             self.client, self.image_processor, self.status_monitor
         )
-        self.job_manager = JobManager(
-            self.client, self.status_monitor, self.upscaling_pipeline
+        # Use enhanced queue manager instead of basic job manager
+        self.queue_manager = EnhancedQueueManager(
+            self.client, self.status_monitor, self.upscaling_pipeline, self.settings
         )
+        # Keep legacy job_manager reference for backward compatibility
+        self.job_manager = self.queue_manager
+
         self.input_handler = InputHandler()
+        self.batch_input_handler = BatchInputHandler()
 
         # GUI components (initialized later)
         self.main_window: Optional[MainWindow] = None
@@ -133,9 +140,9 @@ class ApplicationController:
         logger.info("Shutting down application")
         
         try:
-            # Cancel any running jobs
-            self.job_manager.cancel_current_job()
-            
+            # Shutdown enhanced queue manager
+            self.queue_manager.shutdown()
+
             # Stop monitoring
             self.status_monitor.stop_monitoring()
             
@@ -157,16 +164,23 @@ class ApplicationController:
         self.status_monitor.on_status_changed = self._on_status_changed
         self.status_monitor.on_error = self._on_status_error
         
-        # Job manager callbacks
-        self.job_manager.on_job_started = self._on_job_started
-        self.job_manager.on_job_progress = self._on_job_progress
-        self.job_manager.on_job_completed = self._on_job_completed
-        self.job_manager.on_job_cancelled = self._on_job_cancelled
-        self.job_manager.on_job_failed = self._on_job_failed
+        # Enhanced queue manager callbacks
+        self.queue_manager.on_queue_event = self._on_queue_event
+        # Legacy callbacks for backward compatibility
+        self.queue_manager.on_job_started = self._on_job_started
+        self.queue_manager.on_job_progress = self._on_job_progress
+        self.queue_manager.on_job_completed = self._on_job_completed
+        self.queue_manager.on_job_cancelled = self._on_job_cancelled
+        self.queue_manager.on_job_failed = self._on_job_failed
         
         # Input handler callbacks
         self.input_handler.on_image_received = self._on_image_received
         self.input_handler.on_error = self._on_input_error
+
+        # Batch input handler callbacks
+        self.batch_input_handler.on_batch_validated = self._on_batch_validated
+        self.batch_input_handler.on_validation_error = self._on_validation_error
+        self.batch_input_handler.on_progress = self._on_batch_progress
         
         # Error handler callbacks
         self.error_handler.on_error = self._on_error
@@ -183,9 +197,15 @@ class ApplicationController:
         self.main_window.on_cancel_job = self._on_cancel_job
         self.main_window.on_emergency_stop = self._on_emergency_stop
         self.main_window.on_config_changed = self._on_config_changed
+        # New batch callbacks
+        self.main_window.on_multiple_files_dropped = self._on_multiple_files_dropped
+        self.main_window.on_directory_dropped = self._on_directory_dropped
 
         # Connect status update signal for thread-safe GUI updates
         self.status_signals.status_changed.connect(self._handle_status_update_signal)
+
+        # Set up queue manager with GUI
+        self.main_window.set_queue_manager(self.queue_manager)
     
     def _setup_input_handler(self) -> None:
         """Set up input handler with GUI."""
@@ -387,17 +407,32 @@ class ApplicationController:
         """Handle file selected from browser."""
         self.input_handler.handle_file_drop(file_path)
 
+    def _on_multiple_files_dropped(self, file_paths: List[str]) -> None:
+        """Handle multiple files dropped or selected."""
+        self.handle_multiple_files(file_paths)
+
+    def _on_directory_dropped(self, directory_path: str) -> None:
+        """Handle directory dropped."""
+        self.handle_directory_drop(directory_path)
+
     def _on_image_data_dropped(self, image_data: bytes, source: str) -> None:
         """Handle raw image data dropped on GUI."""
         self.input_handler.handle_image_data(image_data, source)
     
     def _on_cancel_job(self) -> None:
         """Handle cancel job request."""
-        self.job_manager.cancel_current_job()
-    
+        # For enhanced queue manager, we need to cancel the current active job
+        active_jobs = list(self.queue_manager.active_jobs.keys())
+        if active_jobs:
+            self.queue_manager.cancel_job(active_jobs[0])
+
     def _on_emergency_stop(self) -> None:
         """Handle emergency stop request."""
-        self.job_manager.emergency_interrupt()
+        # Cancel all active jobs and pause the queue
+        active_jobs = list(self.queue_manager.active_jobs.keys())
+        for job_id in active_jobs:
+            self.queue_manager.cancel_job(job_id)
+        self.queue_manager.pause_queue()
     
     def _on_config_changed(self, config: dict) -> None:
         """Handle configuration changes."""
@@ -419,6 +454,128 @@ class ApplicationController:
         """Handle critical errors."""
         logger.critical(f"Critical error: {error}")
         # Could trigger application shutdown or recovery
+
+    def _on_queue_event(self, event_data: QueueEventData) -> None:
+        """Handle queue events from enhanced queue manager.
+
+        Args:
+            event_data: Queue event data
+        """
+        logger.debug(f"Queue event: {event_data.event_type.value}")
+
+        # Update GUI based on event type
+        if self.main_window:
+            # For now, just update the status - later we'll add queue panel
+            if event_data.job:
+                job = event_data.job
+                if event_data.event_type.value == "JOB_ADDED":
+                    QTimer.singleShot(0, lambda: self.main_window.update_status(
+                        f"Job queued: {job.get_display_name()}"
+                    ))
+                elif event_data.event_type.value == "JOB_STARTED":
+                    QTimer.singleShot(0, lambda: self.main_window.update_status(
+                        f"Processing: {job.get_display_name()}"
+                    ))
+                elif event_data.event_type.value == "JOB_COMPLETED":
+                    QTimer.singleShot(0, lambda: self.main_window.update_status(
+                        f"Completed: {job.get_display_name()}"
+                    ))
+                elif event_data.event_type.value == "JOB_FAILED":
+                    QTimer.singleShot(0, lambda: self.main_window.update_status(
+                        f"Failed: {job.get_display_name()}"
+                    ))
+                elif event_data.event_type.value == "JOB_CANCELLED":
+                    QTimer.singleShot(0, lambda: self.main_window.update_status(
+                        f"Cancelled: {job.get_display_name()}"
+                    ))
+
+        # Also notify the main window's queue components
+        if self.main_window:
+            QTimer.singleShot(0, lambda: self.main_window.handle_queue_event(event_data))
+
+    def _on_batch_validated(self, valid_files: List[str], batch_id: str) -> None:
+        """Handle batch validation completion.
+
+        Args:
+            valid_files: List of valid file paths
+            batch_id: Generated batch ID
+        """
+        try:
+            logger.info(f"Batch validated: {len(valid_files)} files, batch_id: {batch_id}")
+
+            # Get current configuration
+            config = self._get_current_processing_config()
+
+            # Create job specifications for the batch
+            job_specs = []
+            for file_path in valid_files:
+                job_specs.append({
+                    'source_path': file_path,
+                    'config': config,
+                    'description': f"Upscaling {os.path.basename(file_path)}"
+                })
+
+            # Queue the batch
+            batch_name = f"Batch of {len(valid_files)} files"
+            actual_batch_id, job_ids = self.queue_manager.queue_batch_jobs(job_specs, batch_name)
+
+            # Update GUI
+            if self.main_window:
+                QTimer.singleShot(0, lambda: self.main_window.update_status(
+                    f"Queued batch: {len(job_ids)} jobs"
+                ))
+
+            logger.info(f"Queued batch {actual_batch_id} with {len(job_ids)} jobs")
+
+        except Exception as e:
+            error = self.error_handler.handle_exception(e, "Processing batch")
+            if self.main_window:
+                QTimer.singleShot(0, lambda: self.main_window.show_error_message(error.user_message))
+
+    def _on_validation_error(self, error_message: str) -> None:
+        """Handle batch validation errors.
+
+        Args:
+            error_message: Error message
+        """
+        logger.warning(f"Batch validation error: {error_message}")
+        if self.main_window:
+            QTimer.singleShot(0, lambda: self.main_window.show_error_message(error_message))
+
+    def _on_batch_progress(self, message: str, current: int, total: int) -> None:
+        """Handle batch processing progress.
+
+        Args:
+            message: Progress message
+            current: Current item number
+            total: Total items
+        """
+        logger.debug(f"Batch progress: {message} ({current}/{total})")
+        if self.main_window:
+            QTimer.singleShot(0, lambda: self.main_window.update_status(
+                f"{message} ({current}/{total})"
+            ))
+
+    def handle_multiple_files(self, file_paths: List[str]) -> None:
+        """Handle multiple files dropped or selected.
+
+        Args:
+            file_paths: List of file paths
+        """
+        if len(file_paths) == 1:
+            # Single file - use existing handler
+            self.input_handler.handle_file_drop(file_paths[0])
+        else:
+            # Multiple files - use batch handler
+            self.batch_input_handler.handle_multiple_files(file_paths)
+
+    def handle_directory_drop(self, directory_path: str) -> None:
+        """Handle directory dropped on GUI.
+
+        Args:
+            directory_path: Path to dropped directory
+        """
+        self.batch_input_handler.handle_directory_drop(directory_path)
     
     def _get_current_processing_config(self) -> ProcessingConfig:
         """Get current processing configuration.
